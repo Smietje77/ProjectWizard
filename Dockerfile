@@ -19,6 +19,8 @@ COPY --from=builder /app/node_modules ./node_modules
 
 ENV NODE_ENV=production
 ENV PORT=6776
+ENV PROTOCOL_HEADER=x-forwarded-proto
+ENV HOST_HEADER=x-forwarded-host
 
 EXPOSE 6776
 

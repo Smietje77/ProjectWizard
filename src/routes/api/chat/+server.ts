@@ -1,9 +1,11 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import Anthropic from '@anthropic-ai/sdk';
-import { ANTHROPIC_API_KEY } from '$env/static/private';
+import { env } from '$env/dynamic/private';
 
-const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
+function getClient() {
+	return new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+}
 
 const COORDINATOR_SYSTEM = `Je bent de Coordinator van ProjectWizard — een AI-wizard die niet-technische gebruikers begeleidt bij het opzetten van software projecten.
 
@@ -74,7 +76,7 @@ Bepaal de volgende vraag. Antwoord ALLEEN in JSON formaat.`
 
 	try {
 		// Stream de response voor snellere feedback
-		const stream = await client.messages.stream({
+		const stream = await getClient().messages.stream({
 			model: 'claude-sonnet-4-5-20250929',
 			max_tokens: 1024,
 			system: COORDINATOR_SYSTEM,

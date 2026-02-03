@@ -1,9 +1,11 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import Anthropic from '@anthropic-ai/sdk';
-import { ANTHROPIC_API_KEY } from '$env/static/private';
+import { env } from '$env/dynamic/private';
 
-const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
+function getClient() {
+	return new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+}
 
 const DESIGN_ANALYSIS_PROMPT = `Analyseer deze screenshot/design afbeelding en extraheer de volgende design elementen.
 
@@ -52,7 +54,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	const [, mediaType, base64Data] = match;
 
 	try {
-		const message = await client.messages.create({
+		const message = await getClient().messages.create({
 			model: 'claude-sonnet-4-5-20250929',
 			max_tokens: 2048,
 			messages: [

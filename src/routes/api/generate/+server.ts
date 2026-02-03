@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import Anthropic from '@anthropic-ai/sdk';
-import { ANTHROPIC_API_KEY } from '$env/static/private';
+import { env } from '$env/dynamic/private';
 import {
 	generateClaudeMd,
 	generatePromptMd,
@@ -19,7 +19,9 @@ import { generateGSDFolder } from '$lib/generators/gsd-generator';
 import { generateProjectBundle, generatePlanningOnly } from '$lib/generators/zip-bundler';
 import { mapAnswersToGSD } from '$lib/generators/answer-mapper';
 
-const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
+function getClient() {
+	return new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+}
 
 const GENERATOR_SYSTEM = `Je bent een project scaffold generator. Op basis van de wizard antwoorden genereer je een CLAUDE.md bestand dat perfect aansluit bij het gewenste project.
 
@@ -48,7 +50,7 @@ async function generateEnrichedClaudeMd(
 		.join('\n');
 
 	try {
-		const stream = await client.messages.stream({
+		const stream = await getClient().messages.stream({
 			model: 'claude-sonnet-4-5-20250929',
 			max_tokens: 4096,
 			system: GENERATOR_SYSTEM,
@@ -88,7 +90,7 @@ async function generateEnrichedPromptMd(
 		.join('\n');
 
 	try {
-		const stream = await client.messages.stream({
+		const stream = await getClient().messages.stream({
 			model: 'claude-sonnet-4-5-20250929',
 			max_tokens: 4096,
 			system: `Je bent een prompt generator. Genereer een PROMPT.md bestand dat Claude Code instructies geeft om het project stap voor stap te bouwen. Schrijf in het Nederlands. Bevat: projectbeschrijving, gefaseerde bouwinstructies, requirements, kwaliteitscriteria.`,
@@ -131,7 +133,8 @@ async function writeProjectFiles(
 
 // Lees originele agent bestanden uit ProjectWizard
 async function readAgentFile(relativePath: string): Promise<string | null> {
-	const fullPath = join('C:\\claude_projects\\ProjectWizard', relativePath);
+	const basePath = process.env.PROJECT_ROOT || process.cwd();
+	const fullPath = join(basePath, relativePath);
 	try {
 		return await readFile(fullPath, 'utf-8');
 	} catch {
@@ -232,7 +235,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		}
 	}
 
-	const outputPath = join('C:\\claude_projects', safeName);
+	const outputPath = join(process.env.OUTPUT_DIR || '/tmp/projects', safeName);
 
 	// Streaming: SSE voor real-time voortgang
 	if (useStream) {
