@@ -1,0 +1,29 @@
+{
+  "name": "SaaS Webapp",
+  "description": "Template voor een standaard SaaS webapp met auth, database, en betalingen",
+  "category": "webapp",
+  "defaults": {
+    "frontend": "sveltekit",
+    "database": "supabase",
+    "auth": "supabase-auth",
+    "styling": "tailwind",
+    "deployment": "dokploy"
+  },
+  "mcps": [
+    "supabase",
+    "filesystem"
+  ],
+  "questions_to_skip": [
+    "frontend_choice",
+    "database_choice",
+    "auth_choice"
+  ],
+  "suggested_agents": [
+    "coordinator",
+    "requirements",
+    "architect",
+    "frontend",
+    "backend",
+    "devops"
+  ]
+}

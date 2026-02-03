@@ -1,0 +1,27 @@
+{
+  "name": "API Service",
+  "description": "Template voor een backend API service zonder frontend",
+  "category": "api",
+  "defaults": {
+    "frontend": "none",
+    "database": "supabase",
+    "auth": "jwt",
+    "deployment": "dokploy"
+  },
+  "mcps": [
+    "supabase",
+    "filesystem"
+  ],
+  "questions_to_skip": [
+    "frontend_choice",
+    "styling_choice",
+    "ui_components_choice"
+  ],
+  "suggested_agents": [
+    "coordinator",
+    "requirements",
+    "architect",
+    "backend",
+    "devops"
+  ]
+}
