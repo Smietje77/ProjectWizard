@@ -1,12 +1,12 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { supabase } from '$lib/supabase';
+import { getSupabase } from '$lib/supabase';
 
 // Nieuw project aanmaken
 export const POST: RequestHandler = async ({ request }) => {
 	const { name, description, answers, current_step } = await request.json();
 
-	const { data, error } = await supabase
+	const { data, error } = await getSupabase()
 		.from('projects')
 		.insert({
 			name,
@@ -26,7 +26,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
 // Alle projecten ophalen
 export const GET: RequestHandler = async () => {
-	const { data, error } = await supabase
+	const { data, error } = await getSupabase()
 		.from('projects')
 		.select('id, name, description, current_step, answers, created_at, updated_at')
 		.order('updated_at', { ascending: false });

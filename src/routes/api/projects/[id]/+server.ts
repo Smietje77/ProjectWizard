@@ -1,10 +1,10 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { supabase } from '$lib/supabase';
+import { getSupabase } from '$lib/supabase';
 
 // Enkel project ophalen
 export const GET: RequestHandler = async ({ params }) => {
-	const { data, error } = await supabase
+	const { data, error } = await getSupabase()
 		.from('projects')
 		.select('*')
 		.eq('id', params.id)
@@ -21,7 +21,7 @@ export const GET: RequestHandler = async ({ params }) => {
 export const PATCH: RequestHandler = async ({ params, request }) => {
 	const updates = await request.json();
 
-	const { data, error } = await supabase
+	const { data, error } = await getSupabase()
 		.from('projects')
 		.update(updates)
 		.eq('id', params.id)
@@ -37,7 +37,7 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
 
 // Project verwijderen
 export const DELETE: RequestHandler = async ({ params }) => {
-	const { error } = await supabase.from('projects').delete().eq('id', params.id);
+	const { error } = await getSupabase().from('projects').delete().eq('id', params.id);
 
 	if (error) {
 		return json({ error: error.message }, { status: 500 });
