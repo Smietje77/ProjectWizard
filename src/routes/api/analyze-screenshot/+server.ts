@@ -1,49 +1,17 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import Anthropic from '@anthropic-ai/sdk';
-import { env } from '$env/dynamic/private';
-
-function getClient() {
-	return new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
-}
-
-const DESIGN_ANALYSIS_PROMPT = `Analyseer deze screenshot/design afbeelding en extraheer de volgende design elementen.
-
-Antwoord in dit exacte JSON formaat (geen extra tekst):
-{
-  "stijl": "beschrijving van de algemene design stijl",
-  "kleuren": {
-    "primair": "#hex",
-    "secundair": "#hex",
-    "achtergrond": "#hex",
-    "tekst": "#hex",
-    "accent": "#hex"
-  },
-  "typografie": {
-    "headings": "beschrijving (bijv. bold sans-serif, grote gewichten)",
-    "body": "beschrijving (bijv. lichte sans-serif, goede leesbaarheid)",
-    "aanbevolen_fonts": ["font1", "font2"]
-  },
-  "layout": {
-    "patroon": "beschrijving (bijv. sidebar + content, grid-based)",
-    "spacing": "beschrijving (bijv. veel witruimte, compact, relaxed)"
-  },
-  "componenten": {
-    "border_radius": "beschrijving (bijv. rounded-lg, geen, pill-shaped)",
-    "schaduwen": "beschrijving (bijv. subtiele schaduwen, geen, dramatisch)",
-    "kaarten": "beschrijving van card-stijl",
-    "knoppen": "beschrijving van button-stijl"
-  },
-  "sfeer": "1-2 zinnen die de algehele sfeer/feel beschrijven",
-  "tailwind_hints": ["relevante", "tailwind", "klassen"]
-}`;
+import { analyzeScreenshotSchema } from '$lib/validation/schemas';
+import { validateRequest } from '$lib/validation/validate';
+import { sanitizedError } from '$lib/server/errors';
+import { createWithRetry } from '$lib/server/anthropic-client';
+import { DESIGN_ANALYSIS_PROMPT } from '$lib/prompts/design';
 
 export const POST: RequestHandler = async ({ request }) => {
-	const { image } = await request.json();
+	const body = await request.json();
+	const validation = validateRequest(analyzeScreenshotSchema, body);
+	if (!validation.valid) return validation.error;
 
-	if (!image || !image.startsWith('data:image/')) {
-		return json({ error: 'Ongeldige afbeelding' }, { status: 400 });
-	}
+	const { image } = validation.data;
 
 	// Extraheer base64 data en media type
 	const match = image.match(/^data:(image\/\w+);base64,(.+)$/);
@@ -54,7 +22,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	const [, mediaType, base64Data] = match;
 
 	try {
-		const message = await getClient().messages.create({
+		const message = await createWithRetry({
 			model: 'claude-sonnet-4-5-20250929',
 			max_tokens: 2048,
 			messages: [
@@ -103,13 +71,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		return json({ analysis, structured });
 	} catch (error) {
-		console.error('Screenshot analyse fout:', error);
-		return json(
-			{
-				error: `Analyse mislukt: ${error instanceof Error ? error.message : 'Onbekende fout'}`
-			},
-			{ status: 500 }
-		);
+		return sanitizedError(error, 'Screenshot analyse mislukt');
 	}
 };
 

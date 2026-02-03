@@ -1,7 +1,5 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import Anthropic from '@anthropic-ai/sdk';
-import { env } from '$env/dynamic/private';
 import {
 	generateClaudeMd,
 	generatePromptMd,
@@ -18,27 +16,11 @@ import { join, dirname } from 'path';
 import { generateGSDFolder } from '$lib/generators/gsd-generator';
 import { generateProjectBundle, generatePlanningOnly } from '$lib/generators/zip-bundler';
 import { mapAnswersToGSD } from '$lib/generators/answer-mapper';
-
-function getClient() {
-	return new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
-}
-
-const GENERATOR_SYSTEM = `Je bent een project scaffold generator. Op basis van de wizard antwoorden genereer je een CLAUDE.md bestand dat perfect aansluit bij het gewenste project.
-
-Je output is een volledig CLAUDE.md bestand in markdown formaat. Dit bestand is de primaire context voor Claude Code om het project te bouwen.
-
-Structuur:
-1. Project Overzicht (naam, doel, beschrijving)
-2. Tech Stack (met versies)
-3. Bash Commands (install, dev, build, test)
-4. Architectuur (mappenstructuur, componenten)
-5. Database Schema (als van toepassing)
-6. Code Conventies
-7. Belangrijke Flows (user journeys)
-8. MCP Integraties
-9. Omgevingsvariabelen
-
-Schrijf in het Nederlands. Wees specifiek en gedetailleerd.`;
+import { generateRequestSchema } from '$lib/validation/schemas';
+import { validateRequest } from '$lib/validation/validate';
+import { sanitizedError } from '$lib/server/errors';
+import { streamWithRetry } from '$lib/server/anthropic-client';
+import { GENERATOR_SYSTEM_PROMPT, PROMPT_GENERATOR_SYSTEM } from '$lib/prompts/generator';
 
 async function generateEnrichedClaudeMd(
 	projectName: string,
@@ -50,10 +32,10 @@ async function generateEnrichedClaudeMd(
 		.join('\n');
 
 	try {
-		const stream = await getClient().messages.stream({
+		const message = await streamWithRetry({
 			model: 'claude-sonnet-4-5-20250929',
 			max_tokens: 4096,
-			system: GENERATOR_SYSTEM,
+			system: GENERATOR_SYSTEM_PROMPT,
 			messages: [
 				{
 					role: 'user',
@@ -70,7 +52,6 @@ Genereer een gedetailleerd CLAUDE.md bestand.`
 			]
 		});
 
-		const message = await stream.finalMessage();
 		const content = message.content[0];
 		if (content.type === 'text') return content.text;
 	} catch (error) {
@@ -90,10 +71,10 @@ async function generateEnrichedPromptMd(
 		.join('\n');
 
 	try {
-		const stream = await getClient().messages.stream({
+		const message = await streamWithRetry({
 			model: 'claude-sonnet-4-5-20250929',
 			max_tokens: 4096,
-			system: `Je bent een prompt generator. Genereer een PROMPT.md bestand dat Claude Code instructies geeft om het project stap voor stap te bouwen. Schrijf in het Nederlands. Bevat: projectbeschrijving, gefaseerde bouwinstructies, requirements, kwaliteitscriteria.`,
+			system: PROMPT_GENERATOR_SYSTEM,
 			messages: [
 				{
 					role: 'user',
@@ -108,7 +89,6 @@ ${answersContext}`
 			]
 		});
 
-		const message = await stream.finalMessage();
 		const content = message.content[0];
 		if (content.type === 'text') return content.text;
 	} catch (error) {
@@ -171,11 +151,11 @@ function slugify(text: string): string {
 
 // SSE streaming endpoint
 export const POST: RequestHandler = async ({ request }) => {
-	const { projectName, description, answers, stream: useStream, format } = await request.json();
+	const body = await request.json();
+	const validation = validateRequest(generateRequestSchema, body);
+	if (!validation.valid) return validation.error;
 
-	if (!projectName || !description || !answers?.length) {
-		return json({ error: 'Missende velden: projectName, description, answers' }, { status: 400 });
-	}
+	const { projectName, description, answers, stream: useStream, format } = validation.data;
 
 	const safeName = projectName
 		.toLowerCase()
@@ -227,11 +207,7 @@ export const POST: RequestHandler = async ({ request }) => {
 				}
 			});
 		} catch (err) {
-			console.error('GSD generatie fout:', err);
-			return json(
-				{ error: `GSD fout: ${err instanceof Error ? err.message : 'Onbekende fout'}` },
-				{ status: 500 }
-			);
+			return sanitizedError(err, 'Fout bij GSD generatie');
 		}
 	}
 
@@ -374,10 +350,6 @@ export const POST: RequestHandler = async ({ request }) => {
 			requiredEnvVars: detectRequiredEnvVars(answers)
 		});
 	} catch (error) {
-		console.error('Project generatie fout:', error);
-		return json(
-			{ error: `Fout bij het genereren: ${error instanceof Error ? error.message : 'Onbekende fout'}` },
-			{ status: 500 }
-		);
+		return sanitizedError(error, 'Fout bij het genereren van het project');
 	}
 };

@@ -1,10 +1,17 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getSupabase } from '$lib/supabase';
+import { createProjectSchema } from '$lib/validation/schemas';
+import { validateRequest } from '$lib/validation/validate';
+import { sanitizedError } from '$lib/server/errors';
 
 // Nieuw project aanmaken
 export const POST: RequestHandler = async ({ request }) => {
-	const { name, description, answers, current_step } = await request.json();
+	const body = await request.json();
+	const validation = validateRequest(createProjectSchema, body);
+	if (!validation.valid) return validation.error;
+
+	const { name, description, answers, current_step } = validation.data;
 
 	const { data, error } = await getSupabase()
 		.from('projects')
@@ -18,7 +25,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		.single();
 
 	if (error) {
-		return json({ error: error.message }, { status: 500 });
+		return sanitizedError(error, 'Fout bij aanmaken van project');
 	}
 
 	return json(data);
@@ -32,7 +39,7 @@ export const GET: RequestHandler = async () => {
 		.order('updated_at', { ascending: false });
 
 	if (error) {
-		return json({ error: error.message }, { status: 500 });
+		return sanitizedError(error, 'Fout bij ophalen van projecten');
 	}
 
 	return json(data);

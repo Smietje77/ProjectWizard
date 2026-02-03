@@ -13,8 +13,16 @@ export type Translations = DeepStringify<typeof nl>;
 
 const translations: Record<Locale, Translations> = { nl, en };
 
+const LOCALE_STORAGE_KEY = 'projectwizard:locale';
+
+function loadSavedLocale(): Locale {
+	if (typeof localStorage === 'undefined') return 'nl';
+	const saved = localStorage.getItem(LOCALE_STORAGE_KEY);
+	return saved === 'en' || saved === 'nl' ? saved : 'nl';
+}
+
 class I18n {
-	locale = $state<Locale>('nl');
+	locale = $state<Locale>(loadSavedLocale());
 
 	get t(): Translations {
 		return translations[this.locale];
@@ -24,6 +32,9 @@ class I18n {
 		this.locale = locale;
 		if (typeof document !== 'undefined') {
 			document.documentElement.lang = locale;
+		}
+		if (typeof localStorage !== 'undefined') {
+			localStorage.setItem(LOCALE_STORAGE_KEY, locale);
 		}
 	}
 }
