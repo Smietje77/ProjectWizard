@@ -21,7 +21,9 @@ export default {
 		templateSaas: 'SaaS Webapp',
 		templateApi: 'API Service',
 		templateSaasDesc: 'Een SaaS webapp met gebruikersregistratie, abonnementen en een dashboard.',
-		templateApiDesc: 'Een REST API service met authenticatie en database voor een mobiele app.'
+		templateApiDesc: 'Een REST API service met authenticatie en database voor een mobiele app.',
+		loadProjectsError: 'Kon projecten niet laden',
+		retry: 'Opnieuw proberen'
 	},
 	wizard: {
 		questionCount: 'Vraag {current} / max {max}',

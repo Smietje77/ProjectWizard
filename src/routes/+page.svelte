@@ -25,7 +25,8 @@
 		'frontend_keuze',
 		'database_keuze',
 		'auth_keuze',
-		'deployment_keuze'
+		'deployment_keuze',
+		'design_stijl'
 	];
 
 	function getProjectStatus(project: SavedProject) {
@@ -43,17 +44,29 @@
 
 	let savedProjects = $state<SavedProject[]>([]);
 	let loadingProjects = $state(true);
+	let loadError = $state<string | null>(null);
 
-	onMount(async () => {
+	async function loadProjects() {
+		loadingProjects = true;
+		loadError = null;
 		try {
 			const res = await fetch('/api/projects');
-			if (res.ok) savedProjects = await res.json();
-		} catch {
-			// Supabase niet bereikbaar — geen probleem
+			if (res.ok) {
+				savedProjects = await res.json();
+			} else {
+				const body = await res.json().catch(() => null);
+				loadError = body?.error || `Status ${res.status}`;
+				console.error('Projecten laden mislukt:', loadError);
+			}
+		} catch (err) {
+			loadError = err instanceof Error ? err.message : 'Network error';
+			console.error('Projecten laden mislukt:', err);
 		} finally {
 			loadingProjects = false;
 		}
-	});
+	}
+
+	onMount(() => loadProjects());
 
 	async function startWizard() {
 		if (!description.trim()) return;
@@ -170,6 +183,13 @@
 		<!-- Opgeslagen projecten -->
 		{#if loadingProjects}
 			<p class="text-sm opacity-40">{i18n.t.landing.loadingProjects}</p>
+		{:else if loadError}
+			<div class="flex items-center justify-center gap-3">
+				<p class="text-sm text-error-500">{i18n.t.landing.loadProjectsError}</p>
+				<button type="button" class="btn btn-sm preset-outlined-surface-500" onclick={loadProjects}>
+					{i18n.t.landing.retry}
+				</button>
+			</div>
 		{:else if savedProjects.length > 0}
 			<div class="space-y-3 text-left">
 				<h2 class="text-center text-sm font-medium opacity-60">{i18n.t.landing.savedProjects}</h2>
