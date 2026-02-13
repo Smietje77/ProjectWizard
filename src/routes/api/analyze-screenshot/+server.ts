@@ -24,7 +24,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	try {
 		const message = await createWithRetry({
 			model: 'claude-sonnet-4-5-20250929',
-			max_tokens: 2048,
+			max_tokens: 4096,
 			messages: [
 				{
 					role: 'user',
@@ -76,6 +76,77 @@ export const POST: RequestHandler = async ({ request }) => {
 };
 
 function formatAnalysis(data: Record<string, unknown>): string {
+	const lines: string[] = [];
+
+	// Nieuw formaat (FIX 13: ScreenshotAnalysis)
+	if ('colors' in data && 'effects' in data) {
+		const d = data as {
+			colors?: Record<string, string>;
+			typography?: { headingFont?: string; bodyFont?: string; headingWeight?: string; bodySize?: string };
+			layout?: { navigation?: string; heroType?: string; contentWidth?: string; gridPattern?: string; sectionDividers?: string };
+			effects?: { glassmorphism?: boolean; neumorphism?: boolean; gradients?: { used?: boolean; type?: string; description?: string }; shadows?: string; backgroundEffect?: string; glowEffects?: boolean; blurEffects?: boolean };
+			imagery?: { placeholders?: { location: string; type: string; suggestedSize: string }[]; iconStyle?: string };
+			patterns?: { decorativeElements?: string; whitespace?: string };
+			components?: { borderRadius?: string; buttonStyle?: string; cardStyle?: string; animationHints?: string[] };
+			mood?: { overall?: string; contrast?: string; density?: string; temperature?: string };
+		};
+
+		if (d.colors) {
+			const colorEntries = Object.entries(d.colors).filter(([, v]) => v && v !== 'none');
+			if (colorEntries.length > 0) {
+				lines.push(`Kleuren: ${colorEntries.map(([k, v]) => `${k}: ${v}`).join(', ')}`);
+			}
+		}
+		if (d.typography) {
+			const parts = [];
+			if (d.typography.headingFont) parts.push(`heading: ${d.typography.headingFont}`);
+			if (d.typography.bodyFont) parts.push(`body: ${d.typography.bodyFont}`);
+			if (d.typography.headingWeight) parts.push(`weight: ${d.typography.headingWeight}`);
+			if (parts.length) lines.push(`Typografie: ${parts.join(', ')}`);
+		}
+		if (d.layout) {
+			const parts = [];
+			if (d.layout.navigation) parts.push(`nav: ${d.layout.navigation}`);
+			if (d.layout.heroType) parts.push(`hero: ${d.layout.heroType}`);
+			if (d.layout.contentWidth) parts.push(`breedte: ${d.layout.contentWidth}`);
+			if (d.layout.gridPattern) parts.push(`grid: ${d.layout.gridPattern}`);
+			if (parts.length) lines.push(`Layout: ${parts.join(', ')}`);
+		}
+		if (d.effects) {
+			const effects = [];
+			if (d.effects.glassmorphism) effects.push('glassmorphism');
+			if (d.effects.neumorphism) effects.push('neumorphism');
+			if (d.effects.gradients?.used) effects.push(`gradients (${d.effects.gradients.type})`);
+			if (d.effects.shadows && d.effects.shadows !== 'none') effects.push(`schaduwen: ${d.effects.shadows}`);
+			if (d.effects.glowEffects) effects.push('glow');
+			if (d.effects.blurEffects) effects.push('blur');
+			if (effects.length) lines.push(`Effecten: ${effects.join(', ')}`);
+		}
+		if (d.imagery?.placeholders?.length) {
+			lines.push(`Afbeeldingen: ${d.imagery.placeholders.length} placeholder(s) gedetecteerd`);
+		}
+		if (d.components) {
+			const parts = [];
+			if (d.components.borderRadius) parts.push(`radius: ${d.components.borderRadius}`);
+			if (d.components.buttonStyle) parts.push(`buttons: ${d.components.buttonStyle}`);
+			if (d.components.cardStyle) parts.push(`cards: ${d.components.cardStyle}`);
+			if (parts.length) lines.push(`Componenten: ${parts.join(', ')}`);
+			if (d.components.animationHints?.length) {
+				lines.push(`Animaties: ${d.components.animationHints.join(', ')}`);
+			}
+		}
+		if (d.mood) {
+			const parts = [];
+			if (d.mood.overall) parts.push(d.mood.overall);
+			if (d.mood.contrast) parts.push(`contrast: ${d.mood.contrast}`);
+			if (d.mood.temperature) parts.push(`temperatuur: ${d.mood.temperature}`);
+			if (parts.length) lines.push(`Sfeer: ${parts.join(', ')}`);
+		}
+
+		return lines.length > 0 ? lines.join('\n') : 'Analyse voltooid (geen opvallende elementen gedetecteerd)';
+	}
+
+	// Oud formaat (backward compat)
 	const d = data as {
 		stijl?: string;
 		kleuren?: Record<string, string>;
@@ -85,14 +156,9 @@ function formatAnalysis(data: Record<string, unknown>): string {
 		sfeer?: string;
 	};
 
-	const lines: string[] = [];
 	if (d.stijl) lines.push(`Stijl: ${d.stijl}`);
 	if (d.kleuren) {
-		lines.push(
-			`Kleuren: ${Object.entries(d.kleuren)
-				.map(([k, v]) => `${k}: ${v}`)
-				.join(', ')}`
-		);
+		lines.push(`Kleuren: ${Object.entries(d.kleuren).map(([k, v]) => `${k}: ${v}`).join(', ')}`);
 	}
 	if (d.typografie) {
 		lines.push(`Typografie: headings=${d.typografie.headings}, body=${d.typografie.body}`);
@@ -104,10 +170,8 @@ function formatAnalysis(data: Record<string, unknown>): string {
 		lines.push(`Layout: ${d.layout.patroon}, spacing: ${d.layout.spacing}`);
 	}
 	if (d.componenten) {
-		lines.push(
-			`Componenten: radius=${d.componenten.border_radius}, schaduwen=${d.componenten.schaduwen}`
-		);
+		lines.push(`Componenten: radius=${d.componenten.border_radius}, schaduwen=${d.componenten.schaduwen}`);
 	}
 	if (d.sfeer) lines.push(`Sfeer: ${d.sfeer}`);
-	return lines.join('\n');
+	return lines.length > 0 ? lines.join('\n') : 'Analyse voltooid';
 }

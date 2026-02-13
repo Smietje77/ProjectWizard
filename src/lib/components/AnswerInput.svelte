@@ -16,29 +16,46 @@
 	let isFollowUpMode = $state(false);
 	let followUpQuestion = $state('');
 
-	// Screenshot upload state
-	let uploadedImage = $state<string | null>(null);
-	let imageFileName = $state('');
-	let isAnalyzing = $state(false);
-	let analysisResult = $state<string | null>(null);
+	// Screenshot upload state — multi-page support
+	const MAX_SCREENSHOTS = 5;
+
+	interface ScreenshotSlot {
+		pageType: string;
+		customLabel: string;
+		image: string | null;
+		fileName: string;
+		isAnalyzing: boolean;
+		analysisResult: string | null;
+	}
+
+	const PAGE_TYPE_OPTIONS = [
+		{ value: 'frontpage', labelKey: 'pageTypeFrontpage' as const },
+		{ value: 'product', labelKey: 'pageTypeProduct' as const },
+		{ value: 'dashboard', labelKey: 'pageTypeDashboard' as const },
+		{ value: 'login', labelKey: 'pageTypeLogin' as const },
+		{ value: 'admin', labelKey: 'pageTypeAdmin' as const },
+		{ value: 'detail', labelKey: 'pageTypeDetail' as const },
+		{ value: 'overview', labelKey: 'pageTypeOverview' as const },
+		{ value: 'custom', labelKey: 'pageTypeCustom' as const }
+	];
+
+	let screenshots = $state<ScreenshotSlot[]>([]);
+	let hasAnyAnalysis = $derived(screenshots.some((s) => s.analysisResult));
 
 	let maxSelecties = $derived(question.max_selecties ?? 1);
 	let isMultiSelect = $derived(maxSelecties > 1);
 
-	// Toon screenshot upload zone bij design specialist + vrije tekst
-	let showImageUpload = $derived(
-		question.volgende_specialist === 'design' && question.vraag_type === 'vrije_tekst'
-	);
+	// Toon screenshot upload knop bij alle vrije tekst vragen
+	let showImageUpload = $derived(question.vraag_type === 'vrije_tekst');
+	let showUploadZone = $state(false);
 
 	// Reset state wanneer de vraag verandert
 	$effect(() => {
 		question;
 		isFollowUpMode = false;
 		followUpQuestion = '';
-		uploadedImage = null;
-		imageFileName = '';
-		isAnalyzing = false;
-		analysisResult = null;
+		screenshots = [];
+		showUploadZone = false;
 	});
 
 	function toggleOption(optie: string) {
@@ -68,20 +85,23 @@
 				? selectedOptions.join(', ')
 				: textAnswer.trim();
 
-		// Bij design vragen: voeg screenshot analyse toe aan antwoord
-		if (analysisResult) {
-			answer = answer
-				? `${answer}\n\n[DESIGN_ANALYSE]\n${analysisResult}`
-				: `[DESIGN_ANALYSE]\n${analysisResult}`;
+		// Bij design vragen: voeg screenshot analyses toe aan antwoord (multi-page)
+		const analyzed = screenshots.filter((s) => s.analysisResult);
+		if (analyzed.length > 0) {
+			const markers = analyzed
+				.map((s) => {
+					const label = s.pageType === 'custom' ? s.customLabel : s.pageType;
+					return `[DESIGN_ANALYSE:${label}]\n${s.analysisResult}`;
+				})
+				.join('\n\n');
+			answer = answer ? `${answer}\n\n${markers}` : markers;
 		}
 
 		if (!answer) return;
 		onSubmit(answer);
 		textAnswer = '';
 		selectedOptions = [];
-		uploadedImage = null;
-		imageFileName = '';
-		analysisResult = null;
+		screenshots = [];
 	}
 
 	function handleFollowUp() {
@@ -102,7 +122,7 @@
 		followUpQuestion = '';
 	}
 
-	// Screenshot upload functies
+	// Screenshot upload functies (multi-page)
 	async function resizeAndEncode(file: File, maxDim: number): Promise<string> {
 		return new Promise((resolve) => {
 			const img = new Image();
@@ -123,62 +143,83 @@
 		});
 	}
 
-	async function handleImageUpload(event: Event) {
+	function addScreenshotSlot() {
+		if (screenshots.length >= MAX_SCREENSHOTS) return;
+		screenshots = [
+			...screenshots,
+			{
+				pageType: 'frontpage',
+				customLabel: '',
+				image: null,
+				fileName: '',
+				isAnalyzing: false,
+				analysisResult: null
+			}
+		];
+	}
+
+	function removeScreenshotSlot(index: number) {
+		screenshots = screenshots.filter((_, i) => i !== index);
+	}
+
+	async function handleSlotImageUpload(event: Event, index: number) {
 		const input = event.target as HTMLInputElement;
 		const file = input.files?.[0];
 		if (!file) return;
-
-		// Valideer type en grootte
 		if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) return;
-		if (file.size > 4 * 1024 * 1024) return;
+		// resizeAndEncode comprimeert naar max 1024px JPEG, dus originele grootte niet relevant
+		if (file.size > 20 * 1024 * 1024) return;
 
-		imageFileName = file.name;
-		uploadedImage = await resizeAndEncode(file, 1024);
+		const encoded = await resizeAndEncode(file, 2048);
+		screenshots[index].fileName = file.name;
+		screenshots[index].image = encoded;
 	}
 
-	async function handleDrop(event: DragEvent) {
+	async function handleSlotDrop(event: DragEvent, index: number) {
 		event.preventDefault();
 		const file = event.dataTransfer?.files?.[0];
 		if (!file) return;
 		if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) return;
-		if (file.size > 4 * 1024 * 1024) return;
+		// resizeAndEncode comprimeert naar max 2048px JPEG, dus originele grootte niet relevant
+		if (file.size > 20 * 1024 * 1024) return;
 
-		imageFileName = file.name;
-		uploadedImage = await resizeAndEncode(file, 1024);
+		const encoded = await resizeAndEncode(file, 2048);
+		screenshots[index].fileName = file.name;
+		screenshots[index].image = encoded;
 	}
 
 	function handleDragOver(event: DragEvent) {
 		event.preventDefault();
 	}
 
-	async function analyzeScreenshot() {
-		if (!uploadedImage) return;
-		isAnalyzing = true;
+	async function analyzeSlotScreenshot(index: number) {
+		const slot = screenshots[index];
+		if (!slot.image) return;
+		screenshots[index].isAnalyzing = true;
 
 		try {
 			const response = await fetch('/api/analyze-screenshot', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ image: uploadedImage })
+				body: JSON.stringify({ image: slot.image })
 			});
 			const data = await response.json();
 			if (data.error) {
 				console.error('Screenshot analyse fout:', data.error);
 			} else {
-				analysisResult = data.analysis;
+				screenshots[index].analysisResult = data.analysis;
 			}
 		} catch (err) {
 			console.error('Screenshot analyse mislukt:', err);
 		} finally {
-			isAnalyzing = false;
+			screenshots[index].isAnalyzing = false;
 		}
 	}
 
-	function removeImage() {
-		uploadedImage = null;
-		imageFileName = '';
-		analysisResult = null;
-		isAnalyzing = false;
+	function getPageTypeLabel(slot: ScreenshotSlot): string {
+		if (slot.pageType === 'custom') return slot.customLabel || 'Custom';
+		const option = PAGE_TYPE_OPTIONS.find((o) => o.value === slot.pageType);
+		return option ? i18n.t.wizard[option.labelKey] : slot.pageType;
 	}
 </script>
 
@@ -276,71 +317,118 @@
 			></textarea>
 		{/if}
 
-		<!-- Screenshot upload zone (alleen bij design specialist + vrije tekst) -->
+		<!-- Screenshot upload (multi-page, beschikbaar bij alle vrije tekst vragen) -->
 		{#if showImageUpload}
-			<div
-				class="rounded-lg border-2 border-dashed border-surface-500/30 p-4 text-center transition-colors hover:border-pink-500/50"
-				role="region"
-				aria-label={i18n.t.wizard.uploadScreenshotHint}
-				ondrop={handleDrop}
-				ondragover={handleDragOver}
-			>
-				{#if uploadedImage}
-					<div class="space-y-3">
-						<img src={uploadedImage} alt="Preview" class="mx-auto max-h-48 rounded" />
-						<p class="text-sm opacity-60">{imageFileName}</p>
-
-						{#if isAnalyzing}
-							<div class="flex items-center justify-center gap-2">
-								<div
-									class="h-4 w-4 animate-spin rounded-full border-2 border-pink-500 border-t-transparent"
-								></div>
-								<span class="text-sm opacity-60"
-									>{i18n.t.wizard.analyzingScreenshot}</span
+			{#if screenshots.length > 0 || showUploadZone}
+				<div class="space-y-3">
+					{#each screenshots as slot, index}
+						<div class="rounded-lg border border-surface-500/20 p-3 space-y-2">
+							<!-- Page type selector -->
+							<div class="flex items-center gap-2">
+								<label class="flex items-center gap-2 text-xs font-medium opacity-60">
+									{i18n.t.wizard.pageTypeLabel}
+									<select
+										class="select select-sm rounded border border-surface-500/20 bg-surface-500/5 px-2 py-1 text-sm"
+										bind:value={slot.pageType}
+									>
+										{#each PAGE_TYPE_OPTIONS as opt}
+											<option value={opt.value}>{i18n.t.wizard[opt.labelKey]}</option>
+										{/each}
+									</select>
+								</label>
+								{#if slot.pageType === 'custom'}
+									<input
+										type="text"
+										class="input input-sm rounded border border-surface-500/20 bg-surface-500/5 px-2 py-1 text-sm"
+										placeholder="Pagina naam..."
+										bind:value={slot.customLabel}
+									/>
+								{/if}
+								<button
+									type="button"
+									class="btn btn-sm preset-outlined-error-500 ml-auto"
+									onclick={() => removeScreenshotSlot(index)}
 								>
+									{i18n.t.wizard.removeScreenshot}
+								</button>
 							</div>
-						{:else if analysisResult}
-							<div class="rounded bg-success-500/10 p-3 text-left text-sm">
-								<p class="mb-1 font-medium text-success-500">
-									{i18n.t.wizard.screenshotAnalyzed}
-								</p>
-								<p class="whitespace-pre-wrap text-xs opacity-75">
-									{analysisResult}
-								</p>
-							</div>
-						{:else}
-							<button
-								type="button"
-								class="btn btn-sm preset-filled-primary-500"
-								onclick={analyzeScreenshot}
-								{disabled}
-							>
-								{i18n.t.wizard.uploadScreenshot}
-							</button>
-						{/if}
 
+							<!-- Upload zone of preview -->
+							{#if slot.image}
+								<div class="space-y-2">
+									<div class="flex items-start gap-3">
+										<img src={slot.image} alt="Preview {getPageTypeLabel(slot)}" class="max-h-32 rounded" />
+										<div class="flex-1 space-y-2">
+											<p class="text-xs opacity-60">{slot.fileName}</p>
+											{#if slot.isAnalyzing}
+												<div class="flex items-center gap-2">
+													<div class="h-4 w-4 animate-spin rounded-full border-2 border-pink-500 border-t-transparent"></div>
+													<span class="text-sm opacity-60">{i18n.t.wizard.analyzingScreenshot}</span>
+												</div>
+											{:else if slot.analysisResult}
+												<div class="rounded bg-success-500/10 p-2 text-left text-sm">
+													<p class="mb-1 text-xs font-medium text-success-500">{i18n.t.wizard.screenshotAnalyzed}</p>
+													<p class="whitespace-pre-wrap text-xs opacity-75 max-h-24 overflow-y-auto">{slot.analysisResult}</p>
+												</div>
+											{:else}
+												<button
+													type="button"
+													class="btn btn-sm preset-filled-primary-500"
+													onclick={() => analyzeSlotScreenshot(index)}
+													{disabled}
+												>
+													{i18n.t.wizard.uploadScreenshot}
+												</button>
+											{/if}
+										</div>
+									</div>
+								</div>
+							{:else}
+								<div
+									class="rounded-lg border-2 border-dashed border-surface-500/30 p-3 text-center transition-colors hover:border-pink-500/50"
+									role="region"
+									aria-label={i18n.t.wizard.uploadScreenshotHint}
+									ondrop={(e) => handleSlotDrop(e, index)}
+									ondragover={handleDragOver}
+								>
+									<label class="block cursor-pointer space-y-1">
+										<p class="text-sm opacity-60">{i18n.t.wizard.dragDropHint}</p>
+										<p class="text-xs opacity-40">{i18n.t.wizard.maxFileSize}</p>
+										<input
+											type="file"
+											accept="image/jpeg,image/png,image/webp"
+											class="hidden"
+											onchange={(e) => handleSlotImageUpload(e, index)}
+										/>
+									</label>
+								</div>
+							{/if}
+						</div>
+					{/each}
+
+					<!-- Add another page button -->
+					{#if screenshots.length < MAX_SCREENSHOTS}
 						<button
 							type="button"
-							class="btn btn-sm preset-outlined-error-500"
-							onclick={removeImage}
+							class="btn btn-sm preset-outlined-surface-500 gap-1.5"
+							onclick={addScreenshotSlot}
 						>
-							{i18n.t.wizard.removeScreenshot}
+							+ {i18n.t.wizard.addAnotherPage}
 						</button>
-					</div>
-				{:else}
-					<label class="block cursor-pointer space-y-2">
-						<p class="text-sm opacity-60">{i18n.t.wizard.dragDropHint}</p>
-						<p class="text-xs opacity-40">{i18n.t.wizard.maxFileSize}</p>
-						<input
-							type="file"
-							accept="image/jpeg,image/png,image/webp"
-							class="hidden"
-							onchange={handleImageUpload}
-						/>
-					</label>
-				{/if}
-			</div>
-			<p class="text-xs opacity-40">{i18n.t.wizard.uploadScreenshotHint}</p>
+					{:else}
+						<p class="text-xs opacity-40">{i18n.t.wizard.maxScreenshotsReached}</p>
+					{/if}
+				</div>
+				<p class="text-xs opacity-40">{i18n.t.wizard.uploadScreenshotHint}</p>
+			{:else}
+				<button
+					type="button"
+					class="btn btn-sm preset-outlined-surface-500 gap-1.5"
+					onclick={() => { showUploadZone = true; addScreenshotSlot(); }}
+				>
+					{i18n.t.wizard.attachScreenshot}
+				</button>
+			{/if}
 		{/if}
 
 		<!-- Acties -->
@@ -352,7 +440,7 @@
 				disabled={disabled ||
 					(question.vraag_type === 'multiple_choice'
 						? selectedOptions.length === 0
-						: !textAnswer.trim() && !analysisResult)}
+						: !textAnswer.trim() && !hasAnyAnalysis)}
 			>
 				{i18n.t.wizard.nextButton}
 			</button>

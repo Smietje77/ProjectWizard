@@ -148,18 +148,6 @@ function detectEnvVars(answers: WizardAnswer[]): Array<{ key: string; comment: s
 	return vars;
 }
 
-// Bepaal welke specialists relevant zijn
-function detectSpecialists(answers: WizardAnswer[]): string[] {
-	const specialists = new Set<string>();
-	specialists.add('coordinator');
-
-	for (const a of answers) {
-		if (a.specialist) specialists.add(a.specialist);
-	}
-
-	return [...specialists];
-}
-
 // Genereer CLAUDE.md content
 export function generateClaudeMd(input: GenerationInput): string {
 	const { projectName, description, answers } = input;
@@ -239,12 +227,52 @@ ${requirements || '- Zie wizard antwoorden'}
 ## Technische Keuzes
 ${techAnswers || '- Zie wizard antwoorden'}
 
+## Implementatie Fasen
+
+### Phase 1: Foundation
+Project setup, database schema, authenticatie, basis layout en navigatie.
+
+### Phase 2: Core Backend
+API endpoints, data models en validatie, error handling.
+
+### Phase 3: Core Frontend
+Hoofd UI componenten, formulieren, loading en error states.
+
+### Phase 4: Features & Integraties
+Secundaire features en externe service koppelingen.
+
+### Phase 5: Polish & Testing
+Testing, performance optimalisatie, responsive fixes.
+
+### Phase 6: Deployment
+Production deployment, environment configuratie, SSL, health checks.
+
 ## Kwaliteitscriteria
 - [ ] Alle kernfunctionaliteiten werken
 - [ ] Database schema is correct
 - [ ] Authenticatie is veilig
 - [ ] UI is bruikbaar en responsief
 - [ ] Deployment configuratie is compleet
+
+## Agent Teams
+
+Dit project kan gebouwd worden met Claude Code Agent Teams voor snellere en betere resultaten.
+
+### Setup
+1. Zorg dat \`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1\` in je environment staat
+2. Bekijk \`TEAM.md\` voor de volledige team configuratie
+
+### Werkwijze
+- Start Claude Code als **lead** (coordinator) — deze delegeert taken, bouwt niet zelf
+- Gebruik **Shift+Tab** om in delegate mode te gaan en teammates te spawnen
+- Elke teammate werkt aan eigen bestanden om file conflicts te voorkomen
+- Check voortgang met **Shift+Up/Down**
+
+### Snel starten
+Geef de lead deze instructie:
+\`\`\`
+Lees TEAM.md en maak een agent team aan. Start met Fase 1: Foundation.
+\`\`\`
 
 ## Start hier
 Begin met \`npm install\` en volg de setup instructies in CLAUDE.md.
@@ -262,6 +290,11 @@ export function generateEnvExample(answers: WizardAnswer[]): string {
 	const vars = detectEnvVars(answers);
 	const lines = ['# Environment Variables', '# Kopieer naar .env.local en vul de waardes in', ''];
 
+	// Claude Code Agent Teams (altijd bovenaan)
+	lines.push('# Claude Code Agent Teams (experimenteel)');
+	lines.push('CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1');
+	lines.push('');
+
 	for (const v of vars) {
 		lines.push(`# ${v.comment}`);
 		lines.push(`${v.key}=${v.example}`);
@@ -271,18 +304,28 @@ export function generateEnvExample(answers: WizardAnswer[]): string {
 	return lines.join('\n');
 }
 
-// Genereer .gitignore
-export function generateGitignore(): string {
-	return `node_modules/
-.svelte-kit/
+// Genereer .gitignore — framework-specifiek
+export function generateGitignore(framework?: string): string {
+	const common = `node_modules/
 build/
 dist/
 .env
 .env.local
 .env.production
 .DS_Store
-*.log
-`;
+*.log`;
+
+	const frameworkIgnores: Record<string, string> = {
+		sveltekit: '.svelte-kit/',
+		nextjs: `.next/
+out/
+next-env.d.ts`,
+		nuxt: `.nuxt/
+.output/`
+	};
+
+	const specific = frameworkIgnores[framework || 'sveltekit'] || frameworkIgnores['sveltekit'];
+	return `${common}\n${specific}\n`;
 }
 
 // Genereer design skill (.claude/skills/design.md)
@@ -290,26 +333,44 @@ dist/
 export function generateDesignSkill(answers: WizardAnswer[]): string {
 	const designAnswers = answers.filter((a) => a.specialist === 'design' && a.type !== 'skipped');
 
-	// Extraheer screenshot analyse als die er is
+	// Extraheer screenshot analyses (multi-page support)
 	let screenshotSection = '';
+	const screenshotMarkers: Array<{ pageType: string; text: string }> = [];
 	for (const a of designAnswers) {
-		if (a.answer.includes('[DESIGN_ANALYSE]')) {
-			const marker = '[DESIGN_ANALYSE]\n';
-			const idx = a.answer.indexOf(marker);
+		// Nieuw multi-page formaat: [DESIGN_ANALYSE:pageType]
+		const multiRegex = /\[DESIGN_ANALYSE:([^\]]+)\]\n/g;
+		let match;
+		const markers: Array<{ pageType: string; startIdx: number }> = [];
+		while ((match = multiRegex.exec(a.answer)) !== null) {
+			markers.push({ pageType: match[1], startIdx: match.index + match[0].length });
+		}
+		if (markers.length > 0) {
+			for (let i = 0; i < markers.length; i++) {
+				const start = markers[i].startIdx;
+				const end = i + 1 < markers.length ? markers[i + 1].startIdx - markers[i + 1].pageType.length - '[DESIGN_ANALYSE:]\n'.length : a.answer.length;
+				screenshotMarkers.push({ pageType: markers[i].pageType, text: a.answer.slice(start, end).trim() });
+			}
+		} else if (a.answer.includes('[DESIGN_ANALYSE]')) {
+			// Backward-compatible: oud formaat
+			const oldMarker = '[DESIGN_ANALYSE]\n';
+			const idx = a.answer.indexOf(oldMarker);
 			if (idx >= 0) {
-				const analyseText = a.answer.slice(idx + marker.length).trim();
-				screenshotSection = `
-## Design Referentie (van screenshot)
-De gebruiker heeft een screenshot als inspiratie opgegeven. Gebruik onderstaande analyse als primaire design referentie:
-
-\`\`\`
-${analyseText}
-\`\`\`
-
-Volg deze specifieke kleuren, typografie en componentstijl zo nauwkeurig mogelijk.
-`;
+				screenshotMarkers.push({ pageType: 'Algemeen', text: a.answer.slice(idx + oldMarker.length).trim() });
 			}
 		}
+	}
+	if (screenshotMarkers.length > 0) {
+		const sections = screenshotMarkers
+			.map((m) => `### ${m.pageType}\n\`\`\`\n${m.text}\n\`\`\``)
+			.join('\n\n');
+		screenshotSection = `
+## Design Referenties (van screenshots)
+De gebruiker heeft screenshots als inspiratie opgegeven. Gebruik onderstaande analyses als primaire design referenties per pagina-type:
+
+${sections}
+
+Volg de specifieke kleuren, typografie en componentstijl per pagina-type zo nauwkeurig mogelijk.
+`;
 	}
 
 	// Detecteer design keuzes uit antwoorden
@@ -343,13 +404,13 @@ Volg deze specifieke kleuren, typografie en componentstijl zo nauwkeurig mogelij
 		.map((a) => `${a.question} ${a.answer}`)
 		.join(' ')
 		.toLowerCase();
-	const framework = allText.includes('svelte')
-		? 'SvelteKit'
-		: allText.includes('next')
-			? 'Next.js'
-			: allText.includes('vue') || allText.includes('nuxt')
-				? 'Nuxt/Vue'
-				: 'SvelteKit';
+	const framework = allText.includes('next')
+		? 'Next.js'
+		: allText.includes('vue') || allText.includes('nuxt')
+			? 'Nuxt/Vue'
+			: allText.includes('svelte')
+				? 'SvelteKit'
+				: 'het gekozen framework';
 	const uiLib = allText.includes('skeleton')
 		? 'Skeleton UI'
 		: allText.includes('shadcn')
@@ -451,9 +512,13 @@ export function generateProjectFiles(input: GenerationInput): GeneratedFile[] {
 	files.push({ path: 'PROMPT.md', content: generatePromptMd(input) });
 	files.push({ path: '.mcp.json', content: generateMcpJson(input.answers) });
 	files.push({ path: '.env.example', content: generateEnvExample(input.answers) });
-	files.push({ path: '.gitignore', content: generateGitignore() });
+	const frameworkAnswer = (findAnswer(input.answers, 'frontend') || findAnswer(input.answers, 'framework') || '').toLowerCase();
+	const detectedFramework = frameworkAnswer.includes('next') ? 'nextjs'
+		: frameworkAnswer.includes('nuxt') ? 'nuxt'
+		: 'sveltekit';
+	files.push({ path: '.gitignore', content: generateGitignore(detectedFramework) });
 
 	return files;
 }
 
-export { detectMcps, detectEnvVars, detectSpecialists, extractChoices, findAnswer };
+export { detectMcps, detectEnvVars, extractChoices, findAnswer };

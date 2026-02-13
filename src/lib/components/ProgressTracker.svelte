@@ -19,13 +19,22 @@
 		<!-- Categorie indicators -->
 		<div class="flex flex-wrap gap-2">
 			{#each wizardStore.requiredCategories as category}
-				{@const isCompleted = wizardStore.completedCategories.has(category)}
+				{@const depth = wizardStore.categoryDepth[category] || 'onvoldoende'}
+				{@const isVoldoende = depth === 'voldoende'}
+				{@const isBasis = depth === 'basis'}
 				<span
-					class="rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors {isCompleted
+					class="rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors {isVoldoende
 						? 'bg-primary-500/20 text-primary-500'
-						: 'bg-surface-200-800 opacity-50'}"
+						: isBasis
+							? 'bg-amber-500/20 text-amber-600 dark:text-amber-400'
+							: 'bg-surface-200-800 opacity-50'}"
+					title={(i18n.t.progress as Record<string, string>)[`depth${depth.charAt(0).toUpperCase()}${depth.slice(1)}`] ?? depth}
 				>
-					{#if isCompleted}&#10003;{/if}
+					{#if isVoldoende}
+						&#10003;
+					{:else if isBasis}
+						&#9679;
+					{/if}
 					{(i18n.t.progress as Record<string, string>)[category] ?? category}
 				</span>
 			{/each}

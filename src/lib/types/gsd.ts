@@ -43,7 +43,67 @@ export interface WizardAnswers {
   colorScheme: 'dark' | 'light' | 'auto';
   typography: 'sans-serif' | 'serif' | 'mono' | 'mixed';
   componentStyle: 'rounded' | 'sharp' | 'neumorphic' | 'glassmorphism';
-  screenshotAnalysis?: Record<string, unknown> | null;
+  screenshotAnalysis?: PageScreenshot[] | null;
+  confirmedEffects?: ConfirmedEffects | null;
+}
+
+export interface ScreenshotAnalysis {
+  colors: {
+    primary: string; secondary: string; accent: string;
+    background: string; surface: string; text: string;
+    textMuted: string; border: string;
+  };
+  typography: {
+    headingFont: string; bodyFont: string; headingWeight: string;
+    headingStyle: string; bodySize: string; lineHeight: string;
+  };
+  layout: {
+    navigation: 'topbar' | 'sidebar' | 'bottombar' | 'none';
+    navigationStyle: string; heroType: string; contentWidth: string;
+    gridPattern: string; footerStyle: string; sectionDividers: string;
+  };
+  effects: {
+    glassmorphism: boolean; neumorphism: boolean;
+    gradients: { used: boolean; type: string; description: string };
+    shadows: string; backgroundEffect: string; overlays: string;
+    borderStyle: string; glowEffects: boolean; blurEffects: boolean;
+  };
+  imagery: {
+    placeholders: ImagePlaceholder[];
+    iconStyle: string; illustrationStyle: string; photoTreatment: string;
+  };
+  patterns: {
+    decorativeElements: string; backgroundPatterns: string;
+    whitespace: string; rhythm: string;
+  };
+  components: {
+    borderRadius: string; buttonStyle: string; cardStyle: string;
+    inputStyle: string; animationHints: string[];
+  };
+  mood: {
+    overall: string; contrast: string; density: string; temperature: string;
+  };
+}
+
+export interface ImagePlaceholder {
+  location: string;
+  type: 'hero' | 'product' | 'avatar' | 'background' | 'icon' | 'logo' | 'gallery';
+  suggestedSize: string;
+  shape: 'rectangular' | 'square' | 'circular' | 'rounded' | 'masked';
+  treatment: string;
+}
+
+export interface ConfirmedEffects {
+  confirmedEffects: string[];
+  removedEffects: string[];
+  addedEffects: string[];
+  animationPreferences: string[];
+}
+
+export interface PageScreenshot {
+  pageType: string;
+  label: string;
+  analysis: ScreenshotAnalysis | Record<string, unknown>;
 }
 
 export interface Feature {

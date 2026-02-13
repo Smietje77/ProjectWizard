@@ -16,14 +16,36 @@
 	let progressStep = $state('');
 	let progressPct = $state(0);
 	let envSaved = $state(false);
+	let copiedFile = $state<string | null>(null);
+	let copiedClaudeCmd = $state(false);
+	let isDownloading = $state(false);
 	let generationResult = $state<{
 		success: boolean;
-		outputPath?: string;
-		files?: string[];
+		files?: Array<{ path: string; content: string }>;
 		message?: string;
 		error?: string;
 		requiredEnvVars?: DetectedEnvVar[];
 	} | null>(null);
+
+	// Herstel opgeslagen generatie bij hervatten van afgerond project
+	$effect(() => {
+		if (wizardStore.generatedOutput && !generationResult) {
+			const saved = wizardStore.generatedOutput as {
+				success?: boolean;
+				files?: Array<{ path: string; content: string }>;
+				message?: string;
+				requiredEnvVars?: DetectedEnvVar[];
+			};
+			if (saved.success) {
+				generationResult = {
+					success: true,
+					files: saved.files,
+					message: saved.message,
+					requiredEnvVars: saved.requiredEnvVars
+				};
+			}
+		}
+	});
 
 	async function generateProject() {
 		if (!projectName.trim()) return;
@@ -57,6 +79,7 @@
 			if (!reader) throw new Error('Geen response body');
 
 			let buffer = '';
+			let eventType = '';
 			while (true) {
 				const { done, value } = await reader.read();
 				if (done) break;
@@ -65,34 +88,52 @@
 				const lines = buffer.split('\n');
 				buffer = lines.pop() ?? '';
 
-				let eventType = '';
 				for (const line of lines) {
 					if (line.startsWith('event: ')) {
 						eventType = line.slice(7);
 					} else if (line.startsWith('data: ') && eventType) {
-						const data = JSON.parse(line.slice(6));
-						if (eventType === 'progress') {
-							progressStep = data.step;
-							progressPct = data.pct;
-						} else if (eventType === 'done') {
-							generationResult = data;
-							// Update Supabase
-							if (wizardStore.projectId) {
-								fetch(`/api/projects/${wizardStore.projectId}`, {
-									method: 'PATCH',
-									headers: { 'Content-Type': 'application/json' },
-									body: JSON.stringify({
-										name: projectName.trim(),
-										generated_output: data
-									})
-								});
+						try {
+							const data = JSON.parse(line.slice(6));
+							if (eventType === 'progress') {
+								progressStep = data.step;
+								progressPct = data.pct;
+							} else if (eventType === 'done') {
+								generationResult = data;
+								// Update Supabase (met error handling)
+								if (wizardStore.projectId) {
+									try {
+										const saveRes = await fetch(`/api/projects/${wizardStore.projectId}`, {
+											method: 'PATCH',
+											headers: { 'Content-Type': 'application/json' },
+											body: JSON.stringify({
+												name: projectName.trim(),
+												generated_output: data
+											})
+										});
+										if (!saveRes.ok) {
+											console.error('Opslaan gegenereerde output mislukt:', saveRes.status, await saveRes.text());
+										}
+									} catch (e) {
+										console.error('Opslaan gegenereerde output mislukt:', e);
+									}
+								}
+							} else if (eventType === 'error') {
+								generationResult = { success: false, error: data.error };
 							}
-						} else if (eventType === 'error') {
-							generationResult = { success: false, error: data.error };
+						} catch (parseErr) {
+							console.error('SSE parse fout:', parseErr, 'line:', line);
 						}
 						eventType = '';
 					}
 				}
+			}
+
+			// Fallback: stream eindigde zonder done/error event
+			if (!generationResult) {
+				generationResult = {
+					success: false,
+					error: 'Generatie stream onverwacht beëindigd. Probeer opnieuw.'
+				};
 			}
 		} catch (error) {
 			generationResult = {
@@ -105,21 +146,52 @@
 	}
 
 	async function handleEnvComplete(envVars: Record<string, string>) {
-		if (Object.keys(envVars).length > 0 && generationResult?.outputPath) {
-			try {
-				await fetch('/api/env', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({
-						outputPath: generationResult.outputPath,
-						envVars
-					})
-				});
-			} catch (error) {
-				console.error('Env schrijven mislukt:', error);
-			}
+		// Voeg .env.local toe aan de gegenereerde bestanden zodat het in de ZIP komt
+		if (Object.keys(envVars).length > 0 && generationResult?.files) {
+			const envContent = Object.entries(envVars)
+				.map(([key, value]) => `${key}=${value}`)
+				.join('\n');
+			generationResult = {
+				...generationResult,
+				files: [...generationResult.files, { path: '.env.local', content: envContent }]
+			};
 		}
 		envSaved = true;
+	}
+
+	let safeName = $derived(
+		projectName
+			.toLowerCase()
+			.replace(/[^a-z0-9\-_]/g, '-')
+			.replace(/-+/g, '-')
+			.replace(/^-|-$/g, '') || 'project'
+	);
+
+	async function downloadZip() {
+		if (!generationResult?.files) return;
+		isDownloading = true;
+		try {
+			const JSZip = (await import('jszip')).default;
+			const zip = new JSZip();
+			const folder = zip.folder(safeName);
+			if (!folder) return;
+			for (const file of generationResult.files) {
+				folder.file(file.path, file.content);
+			}
+			const blob = await zip.generateAsync({
+				type: 'blob',
+				compression: 'DEFLATE',
+				compressionOptions: { level: 6 }
+			});
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement('a');
+			a.href = url;
+			a.download = `${safeName}.zip`;
+			a.click();
+			URL.revokeObjectURL(url);
+		} finally {
+			isDownloading = false;
+		}
 	}
 
 	function startOver() {
@@ -212,16 +284,44 @@
 		{#if generationResult.success}
 			<div class="card space-y-4 border-2 border-success-500/30 bg-success-500/5 p-6">
 				<h2 class="text-xl font-semibold text-success-500">{i18n.t.preview.successTitle}</h2>
-				<p>{generationResult.message}</p>
+
+				<!-- Download knop bovenaan -->
+				{#if generationResult.files}
+					<button
+						type="button"
+						class="btn preset-filled-success-500 w-full py-3 text-lg"
+						onclick={downloadZip}
+						disabled={isDownloading}
+					>
+						{isDownloading ? i18n.t.preview.downloading : i18n.t.preview.downloadButton}
+					</button>
+				{/if}
 
 				{#if generationResult.files}
 					<div>
 						<p class="mb-2 text-sm font-medium opacity-60">{i18n.t.preview.generatedFiles}</p>
-						<ul class="space-y-1">
+						<div class="space-y-2">
 							{#each generationResult.files as file}
-								<li class="font-mono text-sm">{file}</li>
+								<details class="rounded border border-surface-500/10">
+									<summary class="flex cursor-pointer items-center justify-between gap-2 p-2">
+										<span class="truncate font-mono text-xs">{file.path}</span>
+										<button
+											type="button"
+											class="btn btn-sm preset-outlined-surface-500 shrink-0"
+											onclick={async (e) => {
+												e.preventDefault();
+												await navigator.clipboard.writeText(file.content);
+												copiedFile = file.path;
+												setTimeout(() => { copiedFile = null; }, 2000);
+											}}
+										>
+											{copiedFile === file.path ? i18n.t.preview.copied : i18n.t.preview.copyButton}
+										</button>
+									</summary>
+									<pre class="max-h-80 overflow-auto border-t border-surface-500/10 bg-surface-50-950 p-3 font-mono text-xs leading-relaxed">{file.content}</pre>
+								</details>
 							{/each}
-						</ul>
+						</div>
 					</div>
 				{/if}
 
@@ -231,29 +331,58 @@
 				{/if}
 
 				<!-- Quick Start instructies -->
-				{#if generationResult.outputPath}
-					<div class="space-y-3">
-						<h3 class="font-semibold">{i18n.t.preview.quickStartTitle}</h3>
-						<p class="text-sm opacity-60">{i18n.t.preview.quickStartGsdHint}</p>
-						<div class="space-y-2 rounded bg-surface-200-800 p-4 font-mono text-sm">
-							<p class="opacity-40">// {i18n.t.preview.quickStartStep1}</p>
-							<p>cd "{generationResult.outputPath}"</p>
-							<p class="mt-3 opacity-40">// {i18n.t.preview.quickStartStep2}</p>
-							<p>claude --dangerously-skip-permissions</p>
-							<p class="mt-3 opacity-40">// {i18n.t.preview.quickStartStep3}</p>
-							<p>/gsd:progress</p>
-							<p>/gsd:discuss-phase 1</p>
-							<p>/gsd:plan-phase 1</p>
-							<p>/gsd:execute-phase 1</p>
-							<p>/gsd:verify-work 1</p>
-						</div>
-					</div>
-				{/if}
+				<div class="space-y-3">
+					<h3 class="font-semibold">{i18n.t.preview.quickStartTitle}</h3>
+					<p class="text-sm opacity-60">{i18n.t.preview.quickStartGsdHint}</p>
+					<p class="text-xs opacity-40">{i18n.t.preview.quickStartPermissionHint}</p>
 
-				<div class="flex gap-3 pt-2">
+					<!-- Open in Claude Code button -->
 					<button
 						type="button"
-						class="btn preset-filled-primary-500"
+						class="btn preset-filled-primary-500 w-full"
+						onclick={async () => {
+							const path = `C:\\claude_projects\\${safeName}`;
+							await navigator.clipboard.writeText(path);
+							copiedClaudeCmd = true;
+							setTimeout(() => { copiedClaudeCmd = false; }, 2000);
+						}}
+					>
+						{copiedClaudeCmd ? i18n.t.preview.copied : i18n.t.preview.openInClaude}
+					</button>
+
+					<div class="space-y-2 rounded bg-surface-200-800 p-4 font-mono text-sm">
+						<p class="opacity-40">// 1. {i18n.t.preview.quickStartStep1}</p>
+						<p>C:\claude_projects\{safeName}</p>
+						<p class="mt-3 opacity-40">// 2. {i18n.t.preview.quickStartStep2}</p>
+						<p class="mt-3 opacity-40">// 3. {i18n.t.preview.quickStartStep3}</p>
+						<p>claude --dangerously-skip-permissions</p>
+						<p class="mt-3 opacity-40">// 4. {i18n.t.preview.quickStartStep4}</p>
+						<p>/gsd:progress</p>
+					</div>
+					<p class="text-xs opacity-50">{i18n.t.preview.quickStartGsdFlow}</p>
+				</div>
+
+				<div class="flex flex-wrap gap-3 pt-2">
+					{#if generationResult.files}
+						<button
+							type="button"
+							class="btn preset-filled-success-500"
+							onclick={downloadZip}
+							disabled={isDownloading}
+						>
+							{isDownloading ? i18n.t.preview.downloading : i18n.t.preview.downloadButton}
+						</button>
+					{/if}
+					<button
+						type="button"
+						class="btn preset-outlined-surface-500"
+						onclick={() => { generationResult = null; }}
+					>
+						{i18n.t.preview.regenerateButton}
+					</button>
+					<button
+						type="button"
+						class="btn preset-outlined-surface-500"
 						onclick={startOver}
 					>
 						{i18n.t.preview.newProject}

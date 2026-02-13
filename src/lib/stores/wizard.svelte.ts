@@ -25,6 +25,10 @@ export interface CoordinatorResponse {
 	advies: string;
 	advies_reden: string;
 	is_compleet: boolean;
+	antwoord_kwaliteit?: number | null;
+	kwaliteit_feedback?: string;
+	categorie_diepte?: Record<string, 'onvoldoende' | 'basis' | 'voldoende'>;
+	critic_feedback?: string;
 }
 
 class WizardStore {
@@ -32,6 +36,7 @@ class WizardStore {
 	projectId = $state<string | null>(null);
 	projectName = $state('');
 	initialDescription = $state('');
+	documentContext = $state('');
 
 	// Flow state
 	currentStep = $state(0);
@@ -39,6 +44,7 @@ class WizardStore {
 	currentSpecialist = $state('coordinator');
 	isComplete = $state(false);
 	isLoading = $state(false);
+	error = $state<string | null>(null);
 
 	// Huidige vraag van coordinator
 	currentQuestion = $state<CoordinatorResponse | null>(null);
@@ -50,12 +56,27 @@ class WizardStore {
 	// Alle antwoorden
 	answers = $state<WizardAnswer[]>([]);
 
-	// Voltooide categorieën
-	completedCategories = $state<Set<RequiredCategory>>(new Set());
+	// Opgeslagen generatie-resultaat (uit Supabase bij hervatten)
+	generatedOutput = $state<Record<string, unknown> | null>(null);
 
-	// Berekende voortgang (deterministisch op basis van voltooide categorieën)
+	// Categorie diepte tracking (onvoldoende/basis/voldoende)
+	categoryDepth = $state<Record<string, 'onvoldoende' | 'basis' | 'voldoende'>>({});
+
+	// Voltooide categorieën (derived from categoryDepth for backward compatibility)
+	get completedCategories(): Set<RequiredCategory> {
+		return new Set(
+			REQUIRED_CATEGORIES.filter((c) => this.categoryDepth[c] === 'voldoende')
+		);
+	}
+
+	// Berekende voortgang (met diepte-weging: onvoldoende=0, basis=0.5, voldoende=1)
 	get progress() {
-		return Math.round((this.completedCategories.size / REQUIRED_CATEGORIES.length) * 100);
+		const categories = REQUIRED_CATEGORIES;
+		const score = categories.reduce((sum, cat) => {
+			const depth = this.categoryDepth[cat];
+			return sum + (depth === 'voldoende' ? 1 : depth === 'basis' ? 0.5 : 0);
+		}, 0);
+		return Math.round((score / categories.length) * 100);
 	}
 
 	get requiredCategories() {
@@ -67,13 +88,18 @@ class WizardStore {
 	}
 
 	// Start nieuwe wizard sessie
-	startSession(description: string) {
+	startSession(description: string, documentContext?: string) {
 		this.initialDescription = description;
+		this.documentContext = documentContext ?? '';
 		this.currentStep = 0;
 		this.answers = [];
-		this.completedCategories = new Set();
+		this.categoryDepth = {};
 		this.isComplete = false;
+		this.isLoading = false;
+		this.error = null;
 		this.currentQuestion = null;
+		this.viewMode = 'question';
+		this.editingIndex = null;
 	}
 
 	// Sla antwoord op en ga naar volgende vraag
@@ -81,9 +107,11 @@ class WizardStore {
 		this.answers = [...this.answers, answer];
 		this.currentStep = this.answers.length;
 
-		// Track categorie als het antwoord er een heeft
+		// Track categorie als het antwoord er een heeft (backward compatibility)
 		if (answer.categorie && REQUIRED_CATEGORIES.includes(answer.categorie as RequiredCategory)) {
-			this.completedCategories = new Set([...this.completedCategories, answer.categorie as RequiredCategory]);
+			if (!this.categoryDepth[answer.categorie]) {
+				this.categoryDepth = { ...this.categoryDepth, [answer.categorie]: 'basis' };
+			}
 		}
 	}
 
@@ -92,13 +120,27 @@ class WizardStore {
 		this.currentQuestion = response;
 		this.currentSpecialist = response.volgende_specialist;
 
+		// Sla kwaliteitsscore op bij het vorige antwoord
+		if (response.antwoord_kwaliteit != null && this.answers.length > 0) {
+			const lastAnswer = this.answers[this.answers.length - 1];
+			this.answers = [
+				...this.answers.slice(0, -1),
+				{ ...lastAnswer, quality: response.antwoord_kwaliteit }
+			];
+		}
+
+		// Update categorie diepte als het in de response zit
+		if (response.categorie_diepte) {
+			this.categoryDepth = { ...this.categoryDepth, ...response.categorie_diepte };
+		}
+
 		// Compleet als AI zegt dat het klaar is OF alle categorieën zijn afgevinkt
 		this.isComplete = response.is_compleet || this.completedCategories.size >= REQUIRED_CATEGORIES.length;
 	}
 
 	// Markeer categorie als voltooid
 	completeCategory(category: RequiredCategory) {
-		this.completedCategories = new Set([...this.completedCategories, category]);
+		this.categoryDepth = { ...this.categoryDepth, [category]: 'voldoende' };
 	}
 
 	// Wissel tussen vraag- en geschiedenisweergave
@@ -160,15 +202,15 @@ class WizardStore {
 		return '[OVERGESLAGEN] De gebruiker heeft deze vraag overgeslagen.';
 	}
 
-	// Herbouw completedCategories uit opgeslagen antwoorden
+	// Herbouw categoryDepth uit opgeslagen antwoorden (backward compatibility)
 	private rebuildCategories(answers: WizardAnswer[]) {
-		const cats = new Set<RequiredCategory>();
+		const depth: Record<string, 'onvoldoende' | 'basis' | 'voldoende'> = {};
 		for (const a of answers) {
 			if (a.categorie && REQUIRED_CATEGORIES.includes(a.categorie as RequiredCategory)) {
-				cats.add(a.categorie as RequiredCategory);
+				depth[a.categorie] = 'voldoende';
 			}
 		}
-		this.completedCategories = cats;
+		this.categoryDepth = depth;
 	}
 
 	// Laad sessie vanuit Supabase
@@ -176,15 +218,36 @@ class WizardStore {
 		id: string;
 		name: string;
 		description: string | null;
+		document_context?: string | null;
 		current_step: number;
 		answers: WizardAnswer[];
+		generated_output?: Record<string, unknown> | null;
+		category_depth?: Record<string, 'onvoldoende' | 'basis' | 'voldoende'> | null;
 	}) {
 		this.projectId = data.id;
 		this.projectName = data.name;
 		this.initialDescription = data.description ?? '';
+		this.documentContext = data.document_context ?? '';
 		this.currentStep = data.current_step;
 		this.answers = data.answers;
-		this.rebuildCategories(data.answers);
+		this.generatedOutput = data.generated_output ?? null;
+		// Reset UI state voor schone hervatting
+		this.currentQuestion = null;
+		this.currentSpecialist = 'coordinator';
+		this.isLoading = false;
+		this.error = null;
+		this.viewMode = 'question';
+		this.editingIndex = null;
+
+		// Gebruik opgeslagen category_depth als beschikbaar, anders rebuild
+		if (data.category_depth && Object.keys(data.category_depth).length > 0) {
+			this.categoryDepth = data.category_depth;
+		} else {
+			this.rebuildCategories(data.answers);
+		}
+
+		// Check completion status
+		this.isComplete = this.completedCategories.size >= REQUIRED_CATEGORIES.length;
 	}
 
 	// Reset alles
@@ -192,15 +255,18 @@ class WizardStore {
 		this.projectId = null;
 		this.projectName = '';
 		this.initialDescription = '';
+		this.documentContext = '';
 		this.currentStep = 0;
 		this.currentSpecialist = 'coordinator';
 		this.isComplete = false;
 		this.isLoading = false;
+		this.error = null;
 		this.currentQuestion = null;
 		this.viewMode = 'question';
 		this.editingIndex = null;
 		this.answers = [];
-		this.completedCategories = new Set();
+		this.categoryDepth = {};
+		this.generatedOutput = null;
 	}
 }
 

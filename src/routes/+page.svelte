@@ -7,6 +7,119 @@
 	let description = $state('');
 	let isSubmitting = $state(false);
 
+	// Document upload state
+	let uploadedDoc = $state<{ name: string; size: number; text: string; summary: string } | null>(null);
+	let docProcessing = $state(false);
+	let docError = $state<string | null>(null);
+	let isDraggingDoc = $state(false);
+	let docInputRef = $state<HTMLInputElement | null>(null);
+
+	const MAX_DOC_SIZE = 10 * 1024 * 1024; // 10MB
+	const ALLOWED_TYPES = ['text/plain', 'text/markdown', 'application/pdf'];
+	const ALLOWED_EXTENSIONS = ['.txt', '.md', '.pdf'];
+
+	function getMimeType(file: File): string | null {
+		if (file.type && ALLOWED_TYPES.includes(file.type)) return file.type;
+		const ext = file.name.toLowerCase().split('.').pop();
+		if (ext === 'txt') return 'text/plain';
+		if (ext === 'md') return 'text/markdown';
+		if (ext === 'pdf') return 'application/pdf';
+		return null;
+	}
+
+	async function handleDocFile(file: File) {
+		docError = null;
+
+		if (file.size > MAX_DOC_SIZE) {
+			docError = i18n.t.landing.uploadDocTooLarge;
+			return;
+		}
+
+		const mimeType = getMimeType(file);
+		if (!mimeType) {
+			docError = i18n.t.landing.uploadDocUnsupported;
+			return;
+		}
+
+		docProcessing = true;
+		try {
+			const base64 = await fileToBase64(file);
+
+			// Text bestanden client-side lezen
+			if (mimeType === 'text/plain' || mimeType === 'text/markdown') {
+				const text = await file.text();
+				const summary = text.slice(0, 500) + (text.length > 500 ? '...' : '');
+				uploadedDoc = { name: file.name, size: file.size, text, summary };
+			} else {
+				// PDF: via API endpoint
+				const res = await fetch('/api/extract-document', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ file: base64, filename: file.name, mimeType })
+				});
+
+				if (!res.ok) {
+					const body = await res.json().catch(() => null);
+					throw new Error(body?.error || `Status ${res.status}`);
+				}
+
+				const data = await res.json();
+				uploadedDoc = { name: file.name, size: file.size, text: data.text, summary: data.summary };
+			}
+		} catch (err) {
+			console.error('Document verwerking mislukt:', err);
+			docError = i18n.t.landing.uploadDocError;
+		} finally {
+			docProcessing = false;
+		}
+	}
+
+	function fileToBase64(file: File): Promise<string> {
+		return new Promise((resolve, reject) => {
+			const reader = new FileReader();
+			reader.onload = () => {
+				const result = reader.result as string;
+				// Strip data URL prefix als aanwezig, anders is het al raw base64
+				const base64 = result.includes(',') ? result.split(',')[1] : result;
+				resolve(base64);
+			};
+			reader.onerror = reject;
+			reader.readAsDataURL(file);
+		});
+	}
+
+	function handleDocDrop(e: DragEvent) {
+		e.preventDefault();
+		isDraggingDoc = false;
+		const file = e.dataTransfer?.files[0];
+		if (file) handleDocFile(file);
+	}
+
+	function handleDocSelect(e: Event) {
+		const input = e.target as HTMLInputElement;
+		const file = input.files?.[0];
+		if (file) handleDocFile(file);
+		input.value = '';
+	}
+
+	function removeDoc() {
+		uploadedDoc = null;
+		docError = null;
+	}
+
+	function formatFileSize(bytes: number): string {
+		if (bytes < 1024) return `${bytes} B`;
+		if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+		return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+	}
+
+	// Auto-resize textarea
+	function autoResize(e: Event) {
+		const el = e.target as HTMLTextAreaElement;
+		el.style.height = 'auto';
+		el.style.height = Math.min(el.scrollHeight, 400) + 'px';
+	}
+
 	// Opgeslagen projecten
 	interface SavedProject {
 		id: string;
@@ -14,6 +127,7 @@
 		description: string | null;
 		current_step: number;
 		answers: Array<{ categorie?: string; type?: string }>;
+		category_depth?: Record<string, 'onvoldoende' | 'basis' | 'voldoende'> | null;
 		created_at: string;
 		updated_at: string;
 	}
@@ -32,6 +146,20 @@
 	function getProjectStatus(project: SavedProject) {
 		const answers = project.answers ?? [];
 		const realAnswers = answers.filter((a) => a.type !== 'skipped');
+
+		// Gebruik opgeslagen category_depth als beschikbaar (zelfde logica als wizard store)
+		if (project.category_depth && Object.keys(project.category_depth).length > 0) {
+			const depth = project.category_depth;
+			const score = REQUIRED_CATEGORIES.reduce((sum, cat) => {
+				const d = depth[cat];
+				return sum + (d === 'voldoende' ? 1 : d === 'basis' ? 0.5 : 0);
+			}, 0);
+			const progress = Math.round((score / REQUIRED_CATEGORIES.length) * 100);
+			const isComplete = REQUIRED_CATEGORIES.every((c) => depth[c] === 'voldoende');
+			return { answerCount: realAnswers.length, progress, isComplete };
+		}
+
+		// Fallback: bereken uit antwoord-categorieën
 		const categories = new Set(
 			answers
 				.filter((a) => a.categorie && REQUIRED_CATEGORIES.includes(a.categorie))
@@ -71,7 +199,7 @@
 	async function startWizard() {
 		if (!description.trim()) return;
 		isSubmitting = true;
-		wizardStore.startSession(description.trim());
+		wizardStore.startSession(description.trim(), uploadedDoc?.text);
 		goto('/wizard');
 	}
 
@@ -85,20 +213,70 @@
 				name: data.name,
 				description: data.description,
 				current_step: data.current_step,
-				answers: data.answers ?? []
+				answers: data.answers ?? [],
+				generated_output: data.generated_output ?? null,
+				category_depth: data.category_depth ?? null
 			});
 			wizardStore.initialDescription = data.description ?? data.name;
 
 			// Ga naar preview als het project al afgerond is
-			const { isComplete } = getProjectStatus(project);
-			if (isComplete) {
-				wizardStore.isComplete = true;
+			if (wizardStore.isComplete) {
 				goto('/wizard/preview');
 			} else {
 				goto('/wizard');
 			}
 		} catch (error) {
 			console.error('Hervatten mislukt:', error);
+		}
+	}
+
+	let downloadingId = $state<string | null>(null);
+	let downloadError = $state<string | null>(null);
+
+	async function downloadProject(project: SavedProject) {
+		downloadingId = project.id;
+		downloadError = null;
+		try {
+			const res = await fetch(`/api/projects/${project.id}`);
+			if (!res.ok) {
+				downloadError = i18n.t.landing.downloadFetchError;
+				return;
+			}
+			const data = await res.json();
+			const output = data.generated_output;
+			if (!output?.files?.length) {
+				downloadError = i18n.t.landing.downloadNoOutput;
+				return;
+			}
+
+			const JSZip = (await import('jszip')).default;
+			const zip = new JSZip();
+			const safeName = project.name
+				.toLowerCase()
+				.replace(/[^a-z0-9\-_]/g, '-')
+				.replace(/-+/g, '-')
+				.replace(/^-|-$/g, '') || 'project';
+			const folder = zip.folder(safeName);
+			if (!folder) return;
+			for (const file of output.files) {
+				folder.file(file.path, file.content);
+			}
+			const blob = await zip.generateAsync({
+				type: 'blob',
+				compression: 'DEFLATE',
+				compressionOptions: { level: 6 }
+			});
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement('a');
+			a.href = url;
+			a.download = `${safeName}.zip`;
+			a.click();
+			URL.revokeObjectURL(url);
+		} catch (error) {
+			console.error('Download mislukt:', error);
+			downloadError = i18n.t.landing.downloadFetchError;
+		} finally {
+			downloadingId = null;
 		}
 	}
 
@@ -140,10 +318,75 @@
 					bind:value={description}
 					placeholder={i18n.t.landing.inputPlaceholder}
 					class="textarea w-full rounded-lg p-3"
-					rows="5"
+					rows="8"
+					style="min-height: 160px; max-height: 400px;"
 					disabled={isSubmitting}
+					oninput={autoResize}
+					maxlength={50000}
 				></textarea>
+				{#if description.length > 100}
+					<div class="text-right text-xs opacity-40">
+						{description.length.toLocaleString()} / 50.000
+					</div>
+				{/if}
 			</label>
+
+			<!-- Document upload zone -->
+			{#if uploadedDoc}
+				<div class="flex items-center gap-3 rounded-lg border border-success-500/30 bg-success-500/5 p-3">
+					<div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-success-500/20">
+						<span class="text-sm">&#128196;</span>
+					</div>
+					<div class="min-w-0 flex-1">
+						<p class="truncate text-sm font-medium">{uploadedDoc.name}</p>
+						<p class="text-xs opacity-50">{formatFileSize(uploadedDoc.size)} — {i18n.t.landing.uploadDocReady}</p>
+					</div>
+					<button
+						type="button"
+						class="btn btn-sm preset-outlined-error-500"
+						onclick={removeDoc}
+					>
+						{i18n.t.landing.uploadDocRemove}
+					</button>
+				</div>
+				{#if uploadedDoc.summary}
+					<details class="text-xs opacity-60">
+						<summary class="cursor-pointer">{i18n.t.landing.uploadDocPreview}</summary>
+						<pre class="mt-2 max-h-32 overflow-auto whitespace-pre-wrap rounded bg-surface-800 p-2">{uploadedDoc.summary}</pre>
+					</details>
+				{/if}
+			{:else if docProcessing}
+				<div class="flex items-center gap-3 rounded-lg border border-surface-500/30 p-3">
+					<div class="h-5 w-5 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"></div>
+					<span class="text-sm opacity-70">{i18n.t.landing.uploadDocProcessing}</span>
+				</div>
+			{:else}
+				<!-- svelte-ignore a11y_no_static_element_interactions -->
+				<div
+					class="flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed p-4 transition-colors {isDraggingDoc ? 'border-primary-500 bg-primary-500/5' : 'border-surface-500/30 hover:border-surface-500/50'}"
+					ondragover={(e) => { e.preventDefault(); isDraggingDoc = true; }}
+					ondragleave={() => { isDraggingDoc = false; }}
+					ondrop={handleDocDrop}
+					onclick={() => docInputRef?.click()}
+					onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') docInputRef?.click(); }}
+					role="button"
+					tabindex="0"
+				>
+					<span class="text-xs opacity-50">{i18n.t.landing.uploadDocHint}</span>
+					<span class="text-xs opacity-30">.txt, .md, .pdf — max 10MB</span>
+				</div>
+				<input
+					bind:this={docInputRef}
+					type="file"
+					accept={ALLOWED_EXTENSIONS.join(',')}
+					class="hidden"
+					onchange={handleDocSelect}
+				/>
+			{/if}
+
+			{#if docError}
+				<p class="text-sm text-error-500">{docError}</p>
+			{/if}
 
 			<button
 				type="button"
@@ -158,24 +401,66 @@
 		<!-- Snelstart templates -->
 		<div class="space-y-3">
 			<p class="text-sm opacity-40">{i18n.t.landing.templateHint}</p>
-			<div class="flex justify-center gap-3">
+			<div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
 				<button
 					type="button"
-					class="btn preset-outlined-surface-500"
+					class="card preset-outlined-surface-500 p-3 text-left transition-all hover:preset-outlined-primary-500"
 					onclick={() => {
 						description = i18n.t.landing.templateSaasDesc;
 					}}
 				>
-					{i18n.t.landing.templateSaas}
+					<p class="text-sm font-semibold">{i18n.t.landing.templateSaas}</p>
+					<p class="mt-1 text-xs opacity-50">{i18n.t.landing.templateSaasHint}</p>
 				</button>
 				<button
 					type="button"
-					class="btn preset-outlined-surface-500"
+					class="card preset-outlined-surface-500 p-3 text-left transition-all hover:preset-outlined-primary-500"
 					onclick={() => {
 						description = i18n.t.landing.templateApiDesc;
 					}}
 				>
-					{i18n.t.landing.templateApi}
+					<p class="text-sm font-semibold">{i18n.t.landing.templateApi}</p>
+					<p class="mt-1 text-xs opacity-50">{i18n.t.landing.templateApiHint}</p>
+				</button>
+				<button
+					type="button"
+					class="card preset-outlined-surface-500 p-3 text-left transition-all hover:preset-outlined-primary-500"
+					onclick={() => {
+						description = i18n.t.landing.templateEcommerceDesc;
+					}}
+				>
+					<p class="text-sm font-semibold">{i18n.t.landing.templateEcommerce}</p>
+					<p class="mt-1 text-xs opacity-50">{i18n.t.landing.templateEcommerceHint}</p>
+				</button>
+				<button
+					type="button"
+					class="card preset-outlined-surface-500 p-3 text-left transition-all hover:preset-outlined-primary-500"
+					onclick={() => {
+						description = i18n.t.landing.templateBlogDesc;
+					}}
+				>
+					<p class="text-sm font-semibold">{i18n.t.landing.templateBlog}</p>
+					<p class="mt-1 text-xs opacity-50">{i18n.t.landing.templateBlogHint}</p>
+				</button>
+				<button
+					type="button"
+					class="card preset-outlined-surface-500 p-3 text-left transition-all hover:preset-outlined-primary-500"
+					onclick={() => {
+						description = i18n.t.landing.templateDashboardDesc;
+					}}
+				>
+					<p class="text-sm font-semibold">{i18n.t.landing.templateDashboard}</p>
+					<p class="mt-1 text-xs opacity-50">{i18n.t.landing.templateDashboardHint}</p>
+				</button>
+				<button
+					type="button"
+					class="card preset-outlined-surface-500 p-3 text-left transition-all hover:preset-outlined-primary-500"
+					onclick={() => {
+						description = i18n.t.landing.templateMobileDesc;
+					}}
+				>
+					<p class="text-sm font-semibold">{i18n.t.landing.templateMobile}</p>
+					<p class="mt-1 text-xs opacity-50">{i18n.t.landing.templateMobileHint}</p>
 				</button>
 			</div>
 		</div>
@@ -193,6 +478,18 @@
 		{:else if savedProjects.length > 0}
 			<div class="space-y-3 text-left">
 				<h2 class="text-center text-sm font-medium opacity-60">{i18n.t.landing.savedProjects}</h2>
+				{#if downloadError}
+					<div class="card border-2 border-warning-500/30 bg-warning-500/5 p-3 space-y-2">
+						<p class="text-sm">{downloadError}</p>
+						<button
+							type="button"
+							class="btn btn-sm preset-outlined-surface-500"
+							onclick={() => downloadError = null}
+						>
+							OK
+						</button>
+					</div>
+				{/if}
 				{#each savedProjects as project}
 					{@const status = getProjectStatus(project)}
 					<div class="card space-y-3 p-4">
@@ -209,6 +506,16 @@
 								</p>
 							</div>
 							<div class="flex shrink-0 gap-2">
+								{#if status.isComplete}
+									<button
+										type="button"
+										class="btn preset-outlined-primary-500 btn-sm"
+										onclick={() => downloadProject(project)}
+										disabled={downloadingId === project.id}
+									>
+										{downloadingId === project.id ? i18n.t.landing.downloading : i18n.t.landing.download}
+									</button>
+								{/if}
 								<button
 									type="button"
 									class="btn preset-filled-primary-500 btn-sm"

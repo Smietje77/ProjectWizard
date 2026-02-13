@@ -16,13 +16,15 @@
 		}
 	});
 
-	// Eerste vraag ophalen bij mount (alleen in question-modus)
+	// Eerste vraag ophalen bij mount (alleen als niet compleet, niet bij error)
 	$effect(() => {
 		if (
 			wizardStore.viewMode === 'question' &&
 			wizardStore.initialDescription &&
 			!wizardStore.currentQuestion &&
-			!wizardStore.isLoading
+			!wizardStore.isLoading &&
+			!wizardStore.error &&
+			!wizardStore.isComplete
 		) {
 			fetchNextQuestion();
 		}
@@ -30,6 +32,7 @@
 
 	async function fetchNextQuestion(userAnswer?: string) {
 		wizardStore.isLoading = true;
+		wizardStore.error = null;
 		try {
 			const response = await fetch('/api/chat', {
 				method: 'POST',
@@ -39,18 +42,21 @@
 					answers: wizardStore.answers,
 					currentStep: wizardStore.currentStep,
 					completedCategories: [...wizardStore.completedCategories],
-					userAnswer
+					userAnswer,
+					...(wizardStore.documentContext ? { documentContext: wizardStore.documentContext } : {})
 				})
 			});
 
 			if (!response.ok) {
-				throw new Error(`API fout: ${response.status}`);
+				const body = await response.json().catch(() => null);
+				throw new Error(body?.error || `API fout: ${response.status}`);
 			}
 
 			const data: CoordinatorResponse = await response.json();
 			wizardStore.setCurrentQuestion(data);
 		} catch (error) {
 			console.error('Fout bij ophalen vraag:', error);
+			wizardStore.error = error instanceof Error ? error.message : 'Onbekende fout';
 		} finally {
 			wizardStore.isLoading = false;
 		}
@@ -65,7 +71,8 @@
 					headers: { 'Content-Type': 'application/json' },
 					body: JSON.stringify({
 						answers: wizardStore.answers,
-						current_step: wizardStore.currentStep
+						current_step: wizardStore.currentStep,
+						category_depth: wizardStore.categoryDepth
 					})
 				});
 			} else {
@@ -114,13 +121,11 @@
 		// Track follow-up state
 		lastWasFollowUp = isFollowUp;
 
+		// Stop met vragen als alle categorieën compleet zijn
+		if (wizardStore.isComplete) return;
+
 		// Haal volgende vraag op
 		await fetchNextQuestion(isFollowUp ? `[VRAAG] ${actualText}` : actualText);
-
-		// Check of wizard compleet is
-		if (wizardStore.isComplete) {
-			goto('/wizard/preview');
-		}
 	}
 
 	async function handleSkip() {
@@ -129,20 +134,12 @@
 
 		saveToSupabase();
 		await fetchNextQuestion(skipText);
-
-		if (wizardStore.isComplete) {
-			goto('/wizard/preview');
-		}
 	}
 
 	async function handleConfirmEdit(index: number, newAnswer: string) {
 		wizardStore.confirmEditAnswer(index, newAnswer);
 		saveToSupabase();
 		await fetchNextQuestion(newAnswer);
-
-		if (wizardStore.isComplete) {
-			goto('/wizard/preview');
-		}
 	}
 
 	function handleFinish() {
@@ -161,10 +158,51 @@
 					onConfirmEdit={handleConfirmEdit}
 					onCancel={() => wizardStore.cancelEdit()}
 				/>
+			{:else if wizardStore.error}
+				<div class="card space-y-3 border-2 border-error-500/30 bg-error-500/5 p-6">
+					<p class="font-medium text-error-500">{i18n.t.wizard.errorTitle}</p>
+					<p class="text-sm opacity-70">{wizardStore.error}</p>
+					<button
+						type="button"
+						class="btn btn-sm preset-filled-primary-500"
+						onclick={() => { wizardStore.error = null; fetchNextQuestion(); }}
+					>
+						{i18n.t.wizard.errorRetry}
+					</button>
+				</div>
+			{:else if wizardStore.isComplete}
+				<!-- Wizard is 100% compleet — geen nieuwe vragen meer -->
+				<div class="card space-y-4 border-2 border-success-500/30 bg-success-500/5 p-6">
+					<p class="text-xl font-medium text-success-500">{i18n.t.wizard.completionTitle}</p>
+					<p class="text-sm opacity-70">{i18n.t.wizard.completionMessage}</p>
+					<button
+						type="button"
+						class="btn preset-filled-success-500 px-8 text-lg"
+						onclick={handleFinish}
+					>
+						{i18n.t.wizard.finishButton}
+					</button>
+				</div>
 			{:else if wizardStore.isLoading}
-				<div class="card flex items-center gap-3 p-6">
-					<div class="h-5 w-5 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"></div>
-					<span class="opacity-60">{i18n.t.wizard.thinkingMessage}</span>
+				<div class="card space-y-3 p-6">
+					<div class="flex items-center gap-3">
+						<div class="h-5 w-5 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"></div>
+						<span class="font-medium">{i18n.t.wizard.thinkingMessage}</span>
+					</div>
+					<div class="space-y-1.5">
+						<div class="flex items-center gap-2 text-xs opacity-50">
+							<div class="h-1.5 w-1.5 animate-pulse rounded-full bg-primary-500"></div>
+							<span>{i18n.t.wizard.thinkingStep1}</span>
+						</div>
+						<div class="flex items-center gap-2 text-xs opacity-30">
+							<div class="h-1.5 w-1.5 rounded-full bg-surface-500"></div>
+							<span>{i18n.t.wizard.thinkingStep2}</span>
+						</div>
+						<div class="flex items-center gap-2 text-xs opacity-30">
+							<div class="h-1.5 w-1.5 rounded-full bg-surface-500"></div>
+							<span>{i18n.t.wizard.thinkingStep3}</span>
+						</div>
+					</div>
 				</div>
 			{:else if wizardStore.currentQuestion}
 				{#if lastWasFollowUp && wizardStore.currentQuestion.advies}
@@ -184,24 +222,23 @@
 					</div>
 				{/if}
 				<QuestionCard question={wizardStore.currentQuestion} hideAdvice={lastWasFollowUp} />
+				{#if wizardStore.currentQuestion?.critic_feedback}
+					<div class="card border-2 border-tertiary-500/30 bg-tertiary-500/5 p-3">
+						<p class="text-xs font-semibold text-tertiary-500 mb-1">{i18n.t.wizard.criticFeedbackTitle}</p>
+						<p class="text-sm">{wizardStore.currentQuestion.critic_feedback}</p>
+					</div>
+				{/if}
+				{#if wizardStore.currentQuestion?.antwoord_kwaliteit != null && wizardStore.currentQuestion.antwoord_kwaliteit < 60}
+					<div class="card preset-outlined-warning-500 p-3">
+						<p class="text-sm opacity-80">{wizardStore.currentQuestion.kwaliteit_feedback}</p>
+					</div>
+				{/if}
 				<AnswerInput
 					question={wizardStore.currentQuestion}
 					onSubmit={handleAnswer}
 					onSkip={handleSkip}
 					disabled={wizardStore.isLoading}
 				/>
-			{/if}
-			{#if wizardStore.answeredCount >= 10 && wizardStore.viewMode === 'question'}
-				<div class="flex items-center justify-between rounded-lg border border-success-500/20 bg-success-500/5 px-4 py-3">
-					<p class="text-xs opacity-60">{i18n.t.wizard.finishHint}</p>
-					<button
-						type="button"
-						class="btn btn-sm preset-filled-success-500"
-						onclick={handleFinish}
-					>
-						{i18n.t.wizard.finishButton}
-					</button>
-				</div>
 			{/if}
 		</div>
 

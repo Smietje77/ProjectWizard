@@ -45,7 +45,15 @@
 							{#if answer.type === 'skipped'}
 								<p class="text-sm italic opacity-50">{i18n.t.wizard.skippedLabel}</p>
 							{:else}
-								<p class="text-sm font-medium">{answer.answer}</p>
+								<div class="flex items-start gap-2">
+									{#if answer.quality !== undefined}
+										<span
+											class="inline-block mt-1 w-2 h-2 rounded-full shrink-0 {answer.quality >= 80 ? 'bg-success-500' : answer.quality >= 60 ? 'bg-warning-500' : 'bg-error-500'}"
+											title="{i18n.t.wizard.qualityIndicator}: {answer.quality}"
+										></span>
+									{/if}
+									<p class="text-sm font-medium">{answer.answer}</p>
+								</div>
 							{/if}
 						</div>
 					{/each}

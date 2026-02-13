@@ -10,26 +10,47 @@ export const wizardAnswerSchema = z.object({
 	categorie: z.string().optional()
 });
 
-// Herbruikbaar schema voor gegenereerde output
+// Herbruikbaar schema voor gegenereerde output (matcht response van /api/generate)
 const generatedOutputSchema = z.object({
-	project_name: z.string(),
-	files: z.array(
-		z.object({
-			path: z.string(),
-			content: z.string()
-		})
-	)
+	success: z.boolean(),
+	files: z
+		.array(z.object({ path: z.string(), content: z.string() }))
+		.optional(),
+	message: z.string().optional(),
+	requiredEnvVars: z
+		.array(
+			z.object({
+				key: z.string(),
+				comment: z.string().optional(),
+				example: z.string().optional(),
+				service: z.string().optional(),
+				dashboardLink: z.string().optional(),
+				sensitive: z.boolean().optional(),
+				label: z.string().optional(),
+				format: z.string().optional()
+			})
+		)
+		.optional(),
+	error: z.string().optional()
 });
 
 // --- API endpoint schemas ---
 
 // POST /api/chat
 export const chatRequestSchema = z.object({
-	projectDescription: z.string().min(1).max(10000),
+	projectDescription: z.string().min(1).max(50000),
 	answers: z.array(wizardAnswerSchema).optional(),
 	currentStep: z.number().int().min(0).max(100),
 	completedCategories: z.array(z.string()).optional(),
-	userAnswer: z.string().optional()
+	userAnswer: z.string().optional(),
+	documentContext: z.string().max(50000).optional()
+});
+
+// POST /api/extract-document
+export const extractDocumentSchema = z.object({
+	file: z.string().min(1),
+	filename: z.string().min(1).max(500),
+	mimeType: z.enum(['text/plain', 'text/markdown', 'application/pdf'])
 });
 
 // POST /api/generate
@@ -51,9 +72,9 @@ export const analyzeScreenshotSchema = z.object({
 				const base64Part = val.split(',')[1];
 				if (!base64Part) return false;
 				const sizeInBytes = (base64Part.length * 3) / 4;
-				return sizeInBytes <= 5 * 1024 * 1024;
+				return sizeInBytes <= 10 * 1024 * 1024;
 			},
-			{ message: 'Afbeelding mag maximaal 5MB zijn' }
+			{ message: 'Afbeelding mag maximaal 10MB zijn' }
 		)
 });
 
@@ -78,6 +99,7 @@ export const updateProjectSchema = z
 		description: z.string().max(10000).nullable().optional(),
 		answers: z.array(wizardAnswerSchema).optional(),
 		current_step: z.number().int().min(0).optional(),
-		generated_output: generatedOutputSchema.nullable().optional()
+		generated_output: generatedOutputSchema.nullable().optional(),
+		category_depth: z.record(z.string(), z.enum(['onvoldoende', 'basis', 'voldoende'])).nullable().optional()
 	})
 	.strict();

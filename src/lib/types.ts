@@ -25,11 +25,24 @@ export interface WizardAnswer {
 	answer: string;
 	type: 'free_text' | 'multiple_choice' | 'follow_up' | 'skipped';
 	categorie?: string;
+	quality?: number;
 }
 
 export interface GeneratedOutput {
-	project_name: string;
-	files: GeneratedFile[];
+	success: boolean;
+	files?: GeneratedFile[];
+	message?: string;
+	requiredEnvVars?: Array<{
+		key: string;
+		comment?: string;
+		example?: string;
+		service?: string;
+		dashboardLink?: string;
+		sensitive?: boolean;
+		label?: string;
+		format?: string;
+	}>;
+	error?: string;
 }
 
 export interface GeneratedFile {
