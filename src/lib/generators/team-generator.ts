@@ -97,7 +97,8 @@ function determineTeammates(answers: WizardAnswers): Teammate[] {
 		backend: generateBackendTeammate,
 		testing: generateTestingTeammate,
 		integration: generateIntegrationTeammate,
-		devops: generateDevOpsTeammate
+		devops: generateDevOpsTeammate,
+		security: generateSecurityTeammate
 	};
 
 	for (const specialist of specialists) {
@@ -170,7 +171,7 @@ function generateBackendTeammate(answers: WizardAnswers): Teammate {
 					? 'social OAuth providers'
 					: 'geen auth';
 
-	const spawnPrompt = `Je bent de backend developer voor dit project. Bouw ${apiName} met ${dbName} als database. Implementeer ${authDetail} authenticatie. Data entities: ${entityList}. Volg best practices voor security (input validatie, SQL injection preventie, proper error handling). Werk ALLEEN aan backend bestanden (API routes, database schema, server-side logic).`;
+	const spawnPrompt = `Je bent de backend developer voor dit project. Bouw ${apiName} met ${dbName} als database. Implementeer ${authDetail} authenticatie. Data entities: ${entityList}. Gebruik de backend skill (.claude/skills/backend.md) voor API conventions. Volg best practices voor security (input validatie, SQL injection preventie, proper error handling). Werk ALLEEN aan backend bestanden (API routes, database schema, server-side logic).`;
 
 	return {
 		name: 'Backend Developer',
@@ -193,7 +194,7 @@ function generateTestingTeammate(answers: WizardAnswers): Teammate {
 	const testFramework =
 		frontendFramework === 'sveltekit' ? 'Vitest + Playwright' : 'Jest + Playwright';
 
-	const spawnPrompt = `Je bent de test engineer voor dit project. Schrijf ${testLevel} tests met ${testFramework}. Focus op critical flows: ${flowsList}. Zorg voor goede test coverage (minimaal 80% voor business logic). Gebruik arrange-act-assert pattern. Mock externe dependencies. Werk ALLEEN aan test bestanden en test configuratie.`;
+	const spawnPrompt = `Je bent de test engineer voor dit project. Schrijf ${testLevel} tests met ${testFramework}. Focus op critical flows: ${flowsList}. Gebruik de testing skill (.claude/skills/testing.md) voor test conventions. Zorg voor goede test coverage (minimaal 80% voor business logic). Gebruik arrange-act-assert pattern. Mock externe dependencies. Werk ALLEEN aan test bestanden en test configuratie.`;
 
 	return {
 		name: 'Test Engineer',
@@ -217,7 +218,7 @@ function generateIntegrationTeammate(answers: WizardAnswers): Teammate {
 		.map((s) => `${s.name} (${s.purpose})`)
 		.join(', ');
 
-	const spawnPrompt = `Je bent de integration specialist voor dit project. Integreer deze externe services: ${servicesDetail}. Configureer MCPs: ${mcpsList}. Implementeer error handling en retry logic voor externe calls. Documenteer rate limits en API quotas. Werk ALLEEN aan integratie bestanden (API clients, webhooks, MCP configs).`;
+	const spawnPrompt = `Je bent de integration specialist voor dit project. Integreer deze externe services: ${servicesDetail}. Configureer MCPs: ${mcpsList}. Gebruik de integration skill (.claude/skills/integration.md) voor integratie patterns. Implementeer error handling en retry logic voor externe calls. Documenteer rate limits en API quotas. Werk ALLEEN aan integratie bestanden (API clients, webhooks, MCP configs).`;
 
 	return {
 		name: 'Integration Specialist',
@@ -245,10 +246,47 @@ function generateDevOpsTeammate(answers: WizardAnswers): Teammate {
 		? ` Configureer custom domain ${domainName} met SSL/TLS certificaten.`
 		: '';
 
-	const spawnPrompt = `Je bent de DevOps engineer voor dit project. Configureer deployment naar ${targetName}.${domainDetail} Setup environment variabelen voor production, staging en development. Implementeer health checks en monitoring. Documenteer deployment process. Werk ALLEEN aan deployment configs (Dockerfile, docker-compose.yml, CI/CD workflows, env configs).`;
+	const spawnPrompt = `Je bent de DevOps engineer voor dit project. Configureer deployment naar ${targetName}.${domainDetail} Gebruik de deployment skill (.claude/skills/deployment.md) voor deployment best practices. Setup environment variabelen voor production, staging en development. Implementeer health checks en monitoring. Documenteer deployment process. Werk ALLEEN aan deployment configs (Dockerfile, docker-compose.yml, CI/CD workflows, env configs).`;
 
 	return {
 		name: 'DevOps Engineer',
+		description,
+		focus,
+		spawnPrompt
+	};
+}
+
+function generateSecurityTeammate(answers: WizardAnswers): Teammate {
+	const { authMethod, database, frontendFramework } = answers;
+
+	// Detecteer welke compliance frameworks relevant zijn
+	const allText = [
+		answers.projectGoal,
+		answers.problemDescription,
+		...answers.coreFeatures.map(f => `${f.name} ${f.description}`)
+	].join(' ').toLowerCase();
+
+	const frameworks: string[] = [];
+	if (allText.includes('gdpr') || allText.includes('privacy')) frameworks.push('GDPR');
+	if (allText.includes('nis2')) frameworks.push('NIS2');
+	if (allText.includes('iso')) frameworks.push('ISO 27001');
+	if (allText.includes('hipaa')) frameworks.push('HIPAA');
+	if (allText.includes('soc2')) frameworks.push('SOC2');
+	if (frameworks.length === 0) frameworks.push('security best practices');
+
+	const frameworksList = frameworks.join(', ');
+
+	const dbName =
+		database === 'supabase' ? 'Supabase RLS' : database === 'postgresql' ? 'PostgreSQL' : 'SQLite';
+
+	const description = `Implementeert ${frameworksList} compliance, security auditing en data protection`;
+
+	const focus = `Security middleware, RLS policies, input validatie, audit logging, CORS configuratie, rate limiting`;
+
+	const spawnPrompt = `Je bent de security specialist voor dit project. Implementeer ${frameworksList} compliance. Configureer ${dbName} row-level security policies. Implementeer security headers, CORS, rate limiting en audit logging. Review alle auth flows (${authMethod}) op kwetsbaarheden. Gebruik de security skill (.claude/skills/security.md) voor security checklists. Werk ALLEEN aan security-gerelateerde bestanden (middleware, policies, security configs, audit logging).`;
+
+	return {
+		name: 'Security Specialist',
 		description,
 		focus,
 		spawnPrompt
@@ -291,7 +329,16 @@ function determinePhases(answers: WizardAnswers, teammates: Teammate[]): Phase[]
 		});
 	}
 
-	// Fase 5: Testing & QA (optioneel)
+	// Fase 5: Security Hardening (optioneel)
+	if (teammates.some((t) => t.name === 'Security Specialist')) {
+		phases.push({
+			name: 'Security Hardening',
+			team: 'Lead + Security teammate + Backend teammate',
+			tasks: 'RLS policies, security headers, audit logging, compliance checks'
+		});
+	}
+
+	// Fase 6: Testing & QA (optioneel)
 	if (teammates.some((t) => t.name === 'Test Engineer')) {
 		phases.push({
 			name: 'Testing & QA',
@@ -300,13 +347,13 @@ function determinePhases(answers: WizardAnswers, teammates: Teammate[]): Phase[]
 		});
 	}
 
-	// Fase 6: Deployment (altijd)
-	const phase6Team = teammates.some((t) => t.name === 'DevOps Engineer')
+	// Fase 7: Deployment (altijd)
+	const deployTeam = teammates.some((t) => t.name === 'DevOps Engineer')
 		? 'Lead + DevOps teammate'
 		: 'Lead + Backend teammate';
 	phases.push({
 		name: 'Deployment',
-		team: phase6Team,
+		team: deployTeam,
 		tasks: 'Production config, deployment, monitoring setup'
 	});
 

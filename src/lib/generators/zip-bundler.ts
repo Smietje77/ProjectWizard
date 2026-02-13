@@ -4,7 +4,8 @@
 import JSZip from 'jszip';
 import type { WizardAnswers } from '$lib/types/gsd';
 import { generateGSDFolder } from './gsd-generator';
-import { getActiveSpecialists } from './specialist-detection';
+import { getActiveSpecialists, getActiveSkills } from './specialist-detection';
+import { generateTeamMd } from './team-generator';
 import {
   sanitizeJson,
   generateClaudeMdTemplate,
@@ -13,7 +14,7 @@ import {
   generateMcpJsonTemplate,
   generateCoordinatorAgentTemplate,
   getSpecialistTemplate,
-  generateDesignSkillTemplate
+  getSkillTemplate
 } from './templates';
 
 interface BundleOptions {
@@ -23,6 +24,7 @@ interface BundleOptions {
 
 /**
  * Genereert een complete project ZIP met .planning/ folder
+ * Gebruikt dezelfde specialist-detectie als de streaming/JSON flow
  */
 export async function generateProjectBundle(
   answers: WizardAnswers,
@@ -56,7 +58,10 @@ export async function generateProjectBundle(
     projectFolder.file('.env.example', generateEnvExampleTemplate(answers));
     projectFolder.file('.mcp.json', generateMcpJsonTemplate(answers));
 
-    // Agents folder — gebruik gedeelde specialist-detectie
+    // TEAM.md — Agent Team configuratie
+    projectFolder.file('TEAM.md', generateTeamMd(answers));
+
+    // Agents folder — dynamisch op basis van specialist-detectie
     const agentsFolder = projectFolder.folder('agents');
     if (agentsFolder) {
       agentsFolder.file('coordinator.md', generateCoordinatorAgentTemplate(answers));
@@ -71,11 +76,19 @@ export async function generateProjectBundle(
       }
     }
 
-    // Design skill (altijd genereren als er design data is)
-    if (answers.designStyle) {
+    // Skills folder — dynamisch op basis van specialist-detectie
+    const skills = getActiveSkills(answers);
+    if (skills.length > 0) {
       const skillsFolder = projectFolder.folder('.claude')?.folder('skills');
       if (skillsFolder) {
-        skillsFolder.file('design.md', generateDesignSkillTemplate(answers));
+        for (const skill of skills) {
+          if (skill.skillFile) {
+            // Haal filename uit skillFile path (bijv. '.claude/skills/design.md' -> 'design.md')
+            const fileName = skill.skillFile.split('/').pop() || `${skill.id}.md`;
+            const content = getSkillTemplate(skill.id, answers);
+            skillsFolder.file(fileName, content);
+          }
+        }
       }
     }
   }
