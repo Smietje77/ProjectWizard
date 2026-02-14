@@ -129,3 +129,127 @@ Genereer in markdown formaat met:
 2. Expertise gebieden (specifiek voor dit project)
 3. Verantwoordelijkheden
 4. Werkwijze en kwaliteitscriteria`;
+
+
+// ============================================
+// Skill Generator Prompts
+// ============================================
+
+export const BACKEND_SKILL_PROMPT = `Je genereert een backend conventions skill (.claude/skills/backend.md) voor Claude Code.
+
+Analyseer de wizard antwoorden over database, API pattern, auth en entities.
+Genereer een concrete backend skill met patronen die specifiek zijn voor de gekozen stack.
+
+De skill MOET bevatten:
+1. API Response Format — standaard success/error structuur met voorbeeldcode
+2. Database Query Patronen — specifiek voor de gekozen database (Supabase client / Prisma / raw SQL)
+3. Validatie — Zod schema patronen met voorbeelden
+4. Error Handling — HTTP status codes, error response format, try/catch patronen
+5. Auth Middleware — hoe authenticatie te checken in routes
+6. Naming Conventions — bestands-, variabele- en functienaming
+
+BELANGRIJK:
+- Gebruik het GEKOZEN framework (SvelteKit +server.ts / Next.js route.ts / Nuxt server/api/)
+- Code voorbeelden moeten DIRECT kopieerbaar zijn
+- Geen vage richtlijnen — concrete patronen met code
+
+Schrijf in markdown formaat. Begin met een frontmatter block met name en description.`;
+
+export const TESTING_SKILL_PROMPT = `Je genereert een testing skill (.claude/skills/testing.md) voor Claude Code.
+
+Analyseer de wizard antwoorden over test strategie, framework en kritieke flows.
+Genereer een concrete testing skill.
+
+De skill MOET bevatten:
+1. Framework Setup — Vitest/Jest config voor het gekozen framework
+2. Test Patronen — arrange-act-assert met voorbeeldcode
+3. Mocking — hoe database, auth en externe services te mocken
+4. Coverage — minimum percentages en welke code MOET getest worden
+5. E2E Scenario's — Playwright patronen voor de genoemde kritieke flows
+6. CI Integratie — test commando's voor CI pipeline
+
+BELANGRIJK:
+- SvelteKit → Vitest + Playwright
+- Next.js → Jest/Vitest + Playwright
+- Nuxt → Vitest + Playwright
+- Concrete code voorbeelden, geen abstracte richtlijnen
+
+Schrijf in markdown formaat. Begin met een frontmatter block.`;
+
+export const DEPLOYMENT_SKILL_PROMPT = `Je genereert een deployment skill (.claude/skills/deployment.md) voor Claude Code.
+
+Analyseer de wizard antwoorden over deployment target, domain en framework.
+Genereer een concrete deployment skill.
+
+De skill MOET bevatten:
+1. Dockerfile — multi-stage build voor het gekozen framework
+2. Docker Compose — development setup met database service
+3. Environment Variables — lijst per omgeving (dev/staging/prod)
+4. CI/CD Workflow — GitHub Actions of equivalent
+5. Domain & SSL — configuratie voor het deployment platform
+6. Health Check — endpoint implementatie
+7. Rollback Procedure — stappen bij een mislukte deploy
+
+BELANGRIJK:
+- Dokploy → Docker-based deployment met Traefik
+- Vercel → vercel.json configuratie
+- Coolify → Docker-based met Coolify specifieke config
+- Concrete configuratiebestanden, geen abstracte beschrijvingen
+
+Schrijf in markdown formaat. Begin met een frontmatter block.`;
+
+export const INTEGRATION_SKILL_PROMPT = `Je genereert een integration skill (.claude/skills/integration.md) voor Claude Code.
+
+Analyseer de wizard antwoorden over externe services en MCP configuraties.
+Genereer een concrete integration skill.
+
+De skill MOET bevatten:
+1. API Client Pattern — wrapper met retry logic, timeout en error handling
+2. Webhook Handling — ontvangen, valideren en verwerken van webhooks
+3. MCP Configuratie — per service de juiste setup
+4. Rate Limiting — client-side rate limiting strategie
+5. Error Recovery — fallback strategieën bij service outages
+6. API Contracten — hoe endpoints te documenteren
+
+BELANGRIJK:
+- Concrete code voor het gekozen framework
+- Elke externe service krijgt een eigen wrapper module
+- Environment variabelen voor alle API keys en secrets
+
+## Stripe Integratie
+Als Stripe in de externe services staat:
+- Gebruik ALTIJD test mode keys (sk_test_, pk_test_) — vermeld dit expliciet
+- Specificeer API versie: 2025-12-18.acacia
+- Bepaal de juiste webhook events op basis van het project type:
+  - E-commerce: checkout.session.completed, payment_intent.succeeded/failed, charge.refunded, charge.dispute.*
+  - SaaS/Abonnementen: customer.subscription.created/updated/deleted, invoice.paid/payment_failed, checkout.session.completed
+  - Marketplace: account.updated, transfer.created, payout.paid/failed, payment_intent.succeeded
+  - Eenmalige betalingen: payment_intent.succeeded/failed, checkout.session.completed, charge.refunded
+- Voeg altijd checkout.session.expired toe
+- Genereer een compleet webhook handler voorbeeld met signature verificatie
+- Beschrijf hoe je lokaal test met Stripe CLI (stripe listen --forward-to)
+- Vermeld dat STRIPE_PUBLISHABLE_KEY ook nodig is voor client-side Checkout
+
+Schrijf in markdown formaat. Begin met een frontmatter block.`;
+
+export const SECURITY_SKILL_PROMPT = `Je genereert een security skill (.claude/skills/security.md) voor Claude Code.
+
+Analyseer de wizard antwoorden over auth, database en compliance doelen.
+Genereer een concrete security skill.
+
+De skill MOET bevatten:
+1. Auth Flows — login, registratie, wachtwoord reset met code voorbeelden
+2. RLS Policies — Row Level Security templates per entity type
+3. Input Sanitization — Zod validatie + XSS preventie patronen
+4. CORS Configuratie — allowed origins setup
+5. Security Headers — Content-Security-Policy, HSTS, etc.
+6. Compliance Checks — specifiek voor het genoemde compliance doel
+7. Audit Logging — hoe security-relevante events te loggen
+
+BELANGRIJK:
+- Supabase → RLS policies met SQL voorbeelden
+- PostgreSQL → database-level security
+- Auth method bepaalt de flow patronen
+- Concrete code, geen checklists
+
+Schrijf in markdown formaat. Begin met een frontmatter block.`;

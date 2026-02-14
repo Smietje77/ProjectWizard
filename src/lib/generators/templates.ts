@@ -28,6 +28,15 @@ function frameworkName(fw: string): string {
   return map[fw] || fw;
 }
 
+export function getFrameworkConventions(framework: string): string {
+  const map: Record<string, string> = {
+    'sveltekit': 'Svelte 5 runes syntax ($state, $derived, $effect)',
+    'nextjs': 'React Server Components + App Router conventions',
+    'nuxt': 'Vue 3 Composition API + Nuxt auto-imports'
+  };
+  return map[framework] || 'Modern framework conventions';
+}
+
 function dbName(db: string): string {
   const map: Record<string, string> = {
     supabase: 'Supabase (PostgreSQL)',
@@ -75,6 +84,162 @@ function servicesList(answers: WizardAnswers): string {
   return answers.externalServices
     .map(s => `- **${s.name}**: ${s.purpose}${s.mcp ? ` (MCP: ${s.mcp})` : ''}`)
     .join('\n');
+}
+
+// ─── Stripe Configuration Helper ──────────────────────────────────────────
+
+interface StripeConfig {
+  mode: 'test';
+  apiVersion: string;
+  events: string[];
+  webhookEndpoint: string;
+  projectType: 'ecommerce' | 'saas' | 'marketplace' | 'simple';
+}
+
+export function getStripeConfig(answers: WizardAnswers): StripeConfig | null {
+  const hasStripe = answers.externalServices.some(s => s.name.toLowerCase().includes('stripe'));
+  if (!hasStripe) return null;
+
+  const text = `${answers.projectGoal} ${answers.problemDescription}`.toLowerCase();
+  const isSvelteKit = answers.frontendFramework === 'sveltekit';
+
+  const webhookEndpoint = isSvelteKit
+    ? 'src/routes/api/webhooks/stripe/+server.ts'
+    : answers.frontendFramework === 'nextjs'
+      ? 'app/api/webhooks/stripe/route.ts'
+      : 'server/api/webhooks/stripe.post.ts';
+
+  const ecommerceKeywords = ['webshop', 'winkelwagen', 'bestelling', 'e-commerce', 'ecommerce', 'shop', 'winkel', 'product', 'order', 'cart', 'checkout'];
+  const saasKeywords = ['abonnement', 'subscription', 'saas', 'plan', 'maandelijks', 'jaarlijks', 'monthly', 'yearly', 'recurring', 'membership', 'lidmaatschap'];
+  const marketplaceKeywords = ['marketplace', 'platform', 'connect', 'vendor', 'seller', 'verkoper', 'commissie', 'payout'];
+
+  if (marketplaceKeywords.some(k => text.includes(k))) {
+    return {
+      mode: 'test', apiVersion: '2025-12-18.acacia', projectType: 'marketplace', webhookEndpoint,
+      events: ['account.updated', 'payment_intent.succeeded', 'payment_intent.payment_failed', 'transfer.created', 'payout.paid', 'payout.failed', 'checkout.session.completed', 'checkout.session.expired']
+    };
+  }
+
+  if (saasKeywords.some(k => text.includes(k))) {
+    return {
+      mode: 'test', apiVersion: '2025-12-18.acacia', projectType: 'saas', webhookEndpoint,
+      events: ['customer.subscription.created', 'customer.subscription.updated', 'customer.subscription.deleted', 'invoice.paid', 'invoice.payment_failed', 'checkout.session.completed', 'checkout.session.expired', 'customer.created']
+    };
+  }
+
+  if (ecommerceKeywords.some(k => text.includes(k))) {
+    return {
+      mode: 'test', apiVersion: '2025-12-18.acacia', projectType: 'ecommerce', webhookEndpoint,
+      events: ['checkout.session.completed', 'checkout.session.expired', 'payment_intent.succeeded', 'payment_intent.payment_failed', 'charge.refunded', 'charge.dispute.created', 'charge.dispute.closed']
+    };
+  }
+
+  return {
+    mode: 'test', apiVersion: '2025-12-18.acacia', projectType: 'simple', webhookEndpoint,
+    events: ['payment_intent.succeeded', 'payment_intent.payment_failed', 'checkout.session.completed', 'checkout.session.expired', 'charge.refunded']
+  };
+}
+
+function generateStripeSection(config: StripeConfig, isSvelteKit: boolean): string {
+  const projectTypeLabels: Record<string, string> = {
+    ecommerce: 'E-commerce (bestellingen & betalingen)',
+    saas: 'SaaS (abonnementen & facturatie)',
+    marketplace: 'Marketplace (Connect & payouts)',
+    simple: 'Eenmalige betalingen'
+  };
+
+  const handlerImport = isSvelteKit
+    ? `import Stripe from 'stripe';
+import { STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET } from '$env/static/private';
+import { error, json } from '@sveltejs/kit';
+
+const stripe = new Stripe(STRIPE_SECRET_KEY, {
+  apiVersion: '${config.apiVersion}'
+});
+
+export async function POST({ request }) {
+  const payload = await request.text();
+  const sig = request.headers.get('stripe-signature');
+  if (!sig) throw error(400, 'Missing stripe-signature header');
+
+  let event: Stripe.Event;
+  try {
+    event = stripe.webhooks.constructEvent(payload, sig, STRIPE_WEBHOOK_SECRET);
+  } catch (err) {
+    console.error('Webhook signature verification failed:', err);
+    throw error(400, 'Invalid signature');
+  }
+
+  switch (event.type) {
+${config.events.map(e => `    case '${e}':\n      // TODO: Implementeer ${e} handler\n      break;`).join('\n')}
+    default:
+      console.log(\`Unhandled event type: \${event.type}\`);
+  }
+
+  return json({ received: true });
+}`
+    : `import Stripe from 'stripe';
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: '${config.apiVersion}'
+});
+
+export async function POST(request: Request) {
+  const payload = await request.text();
+  const sig = request.headers.get('stripe-signature')!;
+
+  let event: Stripe.Event;
+  try {
+    event = stripe.webhooks.constructEvent(payload, sig, process.env.STRIPE_WEBHOOK_SECRET!);
+  } catch (err) {
+    return new Response('Invalid signature', { status: 400 });
+  }
+
+  switch (event.type) {
+${config.events.map(e => `    case '${e}':\n      // TODO: Implementeer ${e} handler\n      break;`).join('\n')}
+    default:
+      console.log(\`Unhandled event type: \${event.type}\`);
+  }
+
+  return Response.json({ received: true });
+}`;
+
+  return `
+## Stripe Integratie
+
+### Project Type
+${projectTypeLabels[config.projectType]}
+
+### Setup (Test/Sandbox Mode)
+1. Maak een account aan op https://dashboard.stripe.com/register
+2. Gebruik **test mode** keys (beginnen met \`sk_test_\` en \`pk_test_\`)
+3. API versie: \`${config.apiVersion}\`
+4. Installeer de SDK: \`npm install stripe\`
+
+> **Belangrijk**: Gebruik ALTIJD test mode keys tijdens ontwikkeling.
+> Live keys (sk_live_) pas gebruiken na volledige testing in sandbox.
+
+### Webhook Configuratie
+1. Ga naar [Stripe Dashboard → Developers → Webhooks](https://dashboard.stripe.com/test/webhooks)
+2. Klik **"Add endpoint"**
+3. URL: \`https://{jouw-domain}/api/webhooks/stripe\`
+4. API versie: \`${config.apiVersion}\`
+5. Selecteer deze events:
+${config.events.map(e => `   - \`${e}\``).join('\n')}
+
+### Webhook Handler
+\`\`\`typescript
+// ${config.webhookEndpoint}
+${handlerImport}
+\`\`\`
+
+### Lokaal Testen
+\`\`\`bash
+# Installeer Stripe CLI: https://stripe.com/docs/stripe-cli
+stripe listen --forward-to localhost:5173/api/webhooks/stripe
+# Kopieer het webhook signing secret (whsec_...) naar .env
+\`\`\`
+`;
 }
 
 // ─── CLAUDE.md Template ────────────────────────────────────────────────────
@@ -239,8 +404,22 @@ export function generateEnvExampleTemplate(answers: WizardAnswers): string {
     lines.push('');
   }
 
-  // External services
+  // Stripe (special handling met sandbox info)
+  const stripeConfig = getStripeConfig(answers);
+  if (stripeConfig) {
+    lines.push(`# Stripe (TEST MODE — gebruik sk_test_ keys!)`);
+    lines.push(`# Dashboard: https://dashboard.stripe.com/test/apikeys`);
+    lines.push(`# API versie: ${stripeConfig.apiVersion}`);
+    lines.push('STRIPE_SECRET_KEY=sk_test_...');
+    lines.push('STRIPE_PUBLISHABLE_KEY=pk_test_...');
+    lines.push('STRIPE_WEBHOOK_SECRET=whsec_...');
+    lines.push(`# Webhook events: ${stripeConfig.events.join(', ')}`);
+    lines.push('');
+  }
+
+  // Other external services (excl. Stripe)
   for (const service of answers.externalServices) {
+    if (service.name.toLowerCase().includes('stripe')) continue;
     lines.push(`# ${service.name}`);
     lines.push(`${service.name.toUpperCase().replace(/[^A-Z0-9]/g, '_')}_API_KEY=`);
     lines.push('');
@@ -664,7 +843,7 @@ Gebruik **${uiLibName(answers.uiLibrary)}** componenten als basis en pas aan vol
 
 // ─── Backend Skill Template ────────────────────────────────────────────────
 
-function generateBackendSkillTemplate(answers: WizardAnswers): string {
+export function generateBackendSkillTemplate(answers: WizardAnswers): string {
   return `# Backend Skill — ${answers.projectName}
 
 ## API Conventies
@@ -700,7 +879,7 @@ ${entitiesList(answers)}
 
 // ─── Testing Skill Template ────────────────────────────────────────────────
 
-function generateTestingSkillTemplate(answers: WizardAnswers): string {
+export function generateTestingSkillTemplate(answers: WizardAnswers): string {
   return `# Testing Skill — ${answers.projectName}
 
 ## Test Strategie: ${answers.testStrategy}
@@ -750,12 +929,17 @@ ${answers.frontendFramework === 'nextjs' ? 'npm test -- --coverage' : 'npm run t
 
 // ─── Integration Skill Template ────────────────────────────────────────────
 
-function generateIntegrationSkillTemplate(answers: WizardAnswers): string {
+export function generateIntegrationSkillTemplate(answers: WizardAnswers): string {
+  const stripeConfig = getStripeConfig(answers);
+  const isSvelteKit = answers.frontendFramework === 'sveltekit';
+  const stripeSection = stripeConfig ? generateStripeSection(stripeConfig, isSvelteKit) : '';
+
   return `# Integration Skill — ${answers.projectName}
 
 ## Externe Services
 
 ${servicesList(answers)}
+${stripeSection}
 
 ## API Client Patronen
 
@@ -813,7 +997,7 @@ ${answers.requiredMcps.length > 0 ? answers.requiredMcps.map(m => `- **${m}**: C
 
 // ─── Deployment Skill Template ─────────────────────────────────────────────
 
-function generateDeploymentSkillTemplate(answers: WizardAnswers): string {
+export function generateDeploymentSkillTemplate(answers: WizardAnswers): string {
   return `# Deployment Skill — ${answers.projectName}
 
 ## Deployment Target: ${answers.deploymentTarget}
@@ -892,7 +1076,7 @@ Zorg dat alle vars in het deployment platform geconfigureerd zijn.
 
 // ─── Security Skill Template ───────────────────────────────────────────────
 
-function generateSecuritySkillTemplate(answers: WizardAnswers): string {
+export function generateSecuritySkillTemplate(answers: WizardAnswers): string {
   const text = [answers.projectGoal, answers.problemDescription, ...answers.coreFeatures.map(f => `${f.name} ${f.description}`), ...answers.outOfScope].join(' ').toLowerCase();
   const hasGDPR = text.includes('gdpr') || text.includes('privacy') || text.includes('avg');
   const hasNIS2 = text.includes('nis2');
