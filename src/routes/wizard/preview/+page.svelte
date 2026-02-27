@@ -285,7 +285,19 @@
 			<div class="card space-y-4 border-2 border-success-500/30 bg-success-500/5 p-6">
 				<h2 class="text-xl font-semibold text-success-500">{i18n.t.preview.successTitle}</h2>
 
-				<!-- Download knop bovenaan -->
+				<!-- Environment variabelen instellen (boven download knop) -->
+				{#if !envSaved && generationResult.requiredEnvVars?.length}
+					<EnvHelper onComplete={handleEnvComplete} requiredEnvVars={generationResult.requiredEnvVars} />
+				{/if}
+
+				{#if envSaved}
+					<div class="flex items-center gap-2 rounded-lg bg-success-500/10 p-3 text-sm text-success-700 dark:text-success-400">
+						<span>&#10003;</span>
+						<span>{i18n.t.env.saved}</span>
+					</div>
+				{/if}
+
+				<!-- Download knop -->
 				{#if generationResult.files}
 					<button
 						type="button"
@@ -293,7 +305,7 @@
 						onclick={downloadZip}
 						disabled={isDownloading}
 					>
-						{isDownloading ? i18n.t.preview.downloading : i18n.t.preview.downloadButton}
+						{isDownloading ? i18n.t.preview.downloading : i18n.t.preview.downloadButton}{envSaved ? ' (.env.local)' : ''}
 					</button>
 				{/if}
 
@@ -323,11 +335,6 @@
 							{/each}
 						</div>
 					</div>
-				{/if}
-
-				<!-- Environment variabelen instellen -->
-				{#if !envSaved && generationResult.requiredEnvVars?.length}
-					<EnvHelper onComplete={handleEnvComplete} requiredEnvVars={generationResult.requiredEnvVars} />
 				{/if}
 
 				<!-- Quick Start instructies -->

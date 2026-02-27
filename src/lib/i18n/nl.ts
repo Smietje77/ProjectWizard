@@ -176,7 +176,8 @@ export default {
 		saveButton: 'Opslaan',
 		saveComplete: 'Opslaan en doorgaan',
 		saveIncomplete: 'Doorgaan (onvolledig)',
-		formatWarning: 'Verwacht formaat: {format}'
+		formatWarning: 'Verwacht formaat: {format}',
+		saved: 'Environment variabelen opgeslagen — worden meegenomen in de download'
 	},
 	tools: {
 		ariaLabel: 'Benodigde software',

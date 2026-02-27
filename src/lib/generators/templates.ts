@@ -3,6 +3,13 @@
 // Gebruikt door: zip-bundler.ts (direct), +server.ts (fallback)
 
 import type { WizardAnswers } from '$lib/types/gsd';
+import {
+	COLOR_PALETTES,
+	EFFECT_ARCHETYPES,
+	FONT_PAIRINGS,
+	SPECIAL_EFFECTS,
+	ANIMATION_CLASSES
+} from '$lib/data/design-tokens';
 
 // ─── Utility ───────────────────────────────────────────────────────────────
 
@@ -788,56 +795,188 @@ export function getSkillTemplate(id: string, answers: WizardAnswers): string {
 // ─── Design Skill Template (ook standalone export) ─────────────────────────
 
 export function generateDesignSkillTemplate(answers: WizardAnswers): string {
-  // Als er screenshot analyses zijn, gebruik die als basis
-  const analysis = answers.screenshotAnalysis?.[0]?.analysis as Record<string, unknown> | undefined;
-  const colors = (analysis?.colors as Record<string, string>) || null;
-  const effects = answers.confirmedEffects;
+  const screenshotColors = (answers.screenshotAnalysis?.[0]?.analysis as Record<string, unknown> | undefined)
+    ?.colors as Record<string, string> | undefined;
+  const screenshotTypo = (answers.screenshotAnalysis?.[0]?.analysis as Record<string, unknown> | undefined)
+    ?.typography as Record<string, string> | undefined;
+
+  const confirmedEffects = answers.confirmedEffects;
+  const isCustomNoScreenshot = answers.designStyle === 'custom' && !screenshotColors;
+
+  // Kleurenpalet: screenshot heeft prioriteit, anders gecureerde fallback
+  const palette = screenshotColors ?? COLOR_PALETTES[answers.designStyle] ?? COLOR_PALETTES['zakelijk'];
+  const isDark = answers.colorScheme === 'dark';
+  const bg = isDark ? (palette.darkBackground ?? palette.background) : palette.background;
+  const surface = isDark ? (palette.darkSurface ?? palette.surface) : palette.surface;
+
+  // Font pairing: screenshot fonts hebben prioriteit
+  const fonts = FONT_PAIRINGS[answers.designStyle] ?? FONT_PAIRINGS['zakelijk'];
+  const headingFont = screenshotTypo?.headingFont ?? fonts.heading;
+  const bodyFont = screenshotTypo?.bodyFont ?? fonts.body;
+
+  // Effect archetype op basis van componentStyle
+  const effects = EFFECT_ARCHETYPES[answers.componentStyle] ?? EFFECT_ARCHETYPES['rounded'];
+
+  // Special effects op basis van confirmedEffects
+  const activeEffectSnippets: Array<{ name: string; snippet: string }> = [];
+  if (confirmedEffects) {
+    const allEffects = [
+      ...confirmedEffects.confirmedEffects,
+      ...confirmedEffects.addedEffects
+    ];
+    for (const effectName of allEffects) {
+      const key = effectName.toLowerCase().replace(/\s+/g, '');
+      const snippet = Object.entries(SPECIAL_EFFECTS).find(([k]) => key.includes(k))?.[1];
+      if (snippet) {
+        let code = '';
+        if (snippet.tailwind) code = `\`${snippet.tailwind}\``;
+        else if (snippet.wrapper) code = `wrapper: \`${snippet.wrapper}\`\ninner: \`${snippet.inner}\``;
+        else if (snippet.css) code = `css: ${snippet.css.slice(0, 80)}...`;
+        activeEffectSnippets.push({ name: snippet.name, snippet: code });
+      }
+    }
+  }
 
   return `# Design Skill — ${answers.projectName}
-
+${isCustomNoScreenshot ? `
+> ⚠️ Custom stijl: geen screenshot of kleurkeuze aangeleverd.
+> Pas de CSS custom properties hieronder handmatig aan op jouw merk.
+` : ''}
 ## Design Systeem
 
-- **Stijl:** ${answers.designStyle}
-- **Kleurschema:** ${answers.colorScheme}
-- **Typography:** ${answers.typography}
-- **Component Style:** ${answers.componentStyle}
+| Eigenschap | Waarde |
+|---|---|
+| Stijl | ${answers.designStyle} |
+| Kleurschema | ${answers.colorScheme} |
+| Typography | ${answers.typography} |
+| Component Style | ${answers.componentStyle} |
+| UI Library | ${uiLibName(answers.uiLibrary)} |
 
-${colors ? `## Kleurenpalet (uit screenshot analyse)
+---
 
-| Token | Waarde |
-|-------|--------|
-| Primary | ${colors.primary || '#3B82F6'} |
-| Secondary | ${colors.secondary || '#6B7280'} |
-| Accent | ${colors.accent || '#F59E0B'} |
-| Background | ${colors.background || '#FFFFFF'} |
-| Surface | ${colors.surface || '#F9FAFB'} |
-| Text | ${colors.text || '#111827'} |
-| Text Muted | ${colors.textMuted || '#6B7280'} |
-| Border | ${colors.border || '#E5E7EB'} |
-` : `## Kleurenpalet
+## CSS Custom Properties
 
-Gebruik het ${answers.colorScheme} kleurschema met ${answers.designStyle} stijl.
-Definieer CSS custom properties voor consistente kleuren.
-`}
+Voeg toe aan \`src/app.css\` of \`globals.css\`:
 
-${effects ? `## Bevestigde Effecten
+\`\`\`css
+:root {
+  --color-primary:    ${palette.primary};
+  --color-secondary:  ${palette.secondary};
+  --color-accent:     ${palette.accent};
+  --color-background: ${bg};
+  --color-surface:    ${surface};
+  --color-text:       ${palette.text};
+  --color-text-muted: ${palette.textMuted};
+  --color-border:     ${palette.border};
+}
+\`\`\`
 
-${effects.confirmedEffects.map(e => `- ✅ ${e}`).join('\n')}
-${effects.removedEffects.length > 0 ? `\n### Verwijderd\n${effects.removedEffects.map(e => `- ❌ ${e}`).join('\n')}` : ''}
-${effects.addedEffects.length > 0 ? `\n### Toegevoegd\n${effects.addedEffects.map(e => `- ✨ ${e}`).join('\n')}` : ''}
-${effects.animationPreferences.length > 0 ? `\n### Animaties\n${effects.animationPreferences.map(e => `- 🎬 ${e}`).join('\n')}` : ''}
+---
+
+## Tailwind Config
+
+Voeg toe aan \`tailwind.config.js\` → \`theme.extend\`:
+
+\`\`\`js
+colors: {
+  primary:    'var(--color-primary)',
+  secondary:  'var(--color-secondary)',
+  accent:     'var(--color-accent)',
+  background: 'var(--color-background)',
+  surface:    'var(--color-surface)',
+  foreground: 'var(--color-text)',
+  muted:      'var(--color-text-muted)',
+  border:     'var(--color-border)',
+},
+${fonts.tailwindConfig}
+\`\`\`
+
+---
+
+## Component Tailwind Classes (${answers.componentStyle})
+
+\`\`\`
+card:   ${effects.card}
+button: ${effects.button}
+${effects.input ? `input:  ${effects.input}` : ''}${effects.badge ? `\nbadge:  ${effects.badge}` : ''}${effects.overlay ? `\noverlay: ${effects.overlay}` : ''}
+\`\`\`
+
+- **Spacing:** 4px/8px grid systeem (Tailwind \`p-2\`, \`p-4\`, \`gap-4\`, \`gap-8\`)
+- **Transitions:** \`transition-all duration-200\` voor hover, \`duration-300\` voor state changes
+
+---
+
+## Typografie
+
+| Rol | Font | Tailwind klasse |
+|---|---|---|
+| Koppen | ${headingFont} | \`font-display\` |
+| Broodtekst | ${bodyFont} | \`font-sans\` |
+| Code | ${fonts.mono} | \`font-mono\` |
+
+### Typografie-schaal
+
+\`\`\`
+h1: text-4xl font-bold tracking-tight
+h2: text-3xl font-semibold
+h3: text-2xl font-semibold
+h4: text-xl font-medium
+body: text-base leading-relaxed
+small: text-sm text-muted
+\`\`\`
+${screenshotColors ? `
+> Fonts gedetecteerd via screenshot analyse.` : ''}
+---
+
+## Animaties
+
+### Entry/Exit (tailwindcss-animate)
+\`\`\`
+Enter: ${ANIMATION_CLASSES.enter.slice(0, 4).join('  ')}
+Exit:  ${ANIMATION_CLASSES.exit.slice(0, 4).join('  ')}
+\`\`\`
+
+### Loop & Feedback
+\`\`\`
+${ANIMATION_CLASSES.loop.join('  ')}
+\`\`\`
+
+### Extended (tailwindcss-animated plugin)
+\`\`\`
+${ANIMATION_CLASSES.extended.slice(0, 5).join('  ')}
+\`\`\`
+
+Modifier classes: \`${ANIMATION_CLASSES.duration.slice(1, 4).join(' ')}\` · \`${ANIMATION_CLASSES.easing.join(' ')}\` · \`${ANIMATION_CLASSES.delay.slice(0, 3).join(' ')}\`
+${activeEffectSnippets.length > 0 ? `
+---
+
+## Special Effects
+
+${activeEffectSnippets.map(e => `### ${e.name}\n\`\`\`\n${e.snippet}\n\`\`\``).join('\n\n')}
+` : ''}${confirmedEffects && confirmedEffects.removedEffects.length > 0 ? `
+### Verwijderde effecten (gebruik NIET)
+
+${confirmedEffects.removedEffects.map(e => `- ~~${e}~~`).join('\n')}
+` : ''}${confirmedEffects && confirmedEffects.animationPreferences.length > 0 ? `
+### Animatievoorkeuren
+
+${confirmedEffects.animationPreferences.map(e => `- ${e}`).join('\n')}
 ` : ''}
+---
 
-## Component Richtlijnen
+## Quick Start
 
-- **Border Radius:** ${answers.componentStyle === 'rounded' ? '8px - 12px' : answers.componentStyle === 'sharp' ? '0px - 2px' : answers.componentStyle === 'neumorphic' ? '12px - 16px' : '12px - 20px'}
-- **Schaduwen:** ${answers.componentStyle === 'neumorphic' ? 'Neumorphic (inset + outer)' : answers.componentStyle === 'glassmorphism' ? 'Subtle met blur backdrop' : 'Standaard elevation system'}
-- **Spacing:** Consistent 4px/8px grid systeem
-- **Transitions:** 200ms ease voor hover, 300ms ease voor state changes
+1. **Fonts laden** — voeg toe aan \`<head>\` in \`app.html\` of layout:
+   \`\`\`html
+   <link rel="preconnect" href="https://fonts.googleapis.com">
+   <link href="${fonts.googleFontsUrl}" rel="stylesheet">
+   \`\`\`
 
-## UI Library
+2. **CSS variabelen** — plak het \`:root { ... }\` blok bovenaan \`src/app.css\`
 
-Gebruik **${uiLibName(answers.uiLibrary)}** componenten als basis en pas aan volgens bovenstaand design systeem.
+3. **Tailwind config** — voeg het \`theme.extend\` blok toe aan \`tailwind.config.js\`
+
+Daarna kun je direct Tailwind-classes als \`text-primary\`, \`bg-surface\`, \`border-border\` gebruiken.
 `;
 }
 

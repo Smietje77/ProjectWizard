@@ -73,11 +73,17 @@
 		services.every((s) => s.vars.every((v) => v.value.trim().length > 0))
 	);
 
+	let anyFilled = $derived(
+		services.some((s) => s.vars.some((v) => v.value.trim().length > 0))
+	);
+
 	function handleComplete() {
 		const envVars: Record<string, string> = {};
 		for (const service of services) {
 			for (const v of service.vars) {
-				envVars[v.key] = v.value;
+				if (v.value.trim().length > 0) {
+					envVars[v.key] = v.value;
+				}
 			}
 		}
 		onComplete(envVars);
@@ -166,7 +172,7 @@
 		</div>
 	{/if}
 
-	<!-- Volgende / Klaar -->
+	<!-- Navigatie + Opslaan -->
 	<div class="flex gap-3">
 		{#if activeService < services.length - 1}
 			<button
@@ -176,25 +182,15 @@
 			>
 				{i18n.t.env.nextService}
 			</button>
-		{:else}
-			<button
-				type="button"
-				class="btn preset-filled-success-500"
-				onclick={handleComplete}
-				disabled={!allFilled}
-			>
-				{i18n.t.env.saveButton}
-			</button>
-			{#if !allFilled}
-				<button
-					type="button"
-					class="btn preset-outlined-surface-500"
-					onclick={skipAll}
-				>
-					{i18n.t.env.skipButton}
-				</button>
-			{/if}
 		{/if}
+		<button
+			type="button"
+			class="btn preset-filled-success-500"
+			onclick={handleComplete}
+			disabled={!anyFilled}
+		>
+			{allFilled ? i18n.t.env.saveComplete : i18n.t.env.saveIncomplete}
+		</button>
 	</div>
 </div>
 {/if}

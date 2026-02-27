@@ -90,32 +90,87 @@ NODE_ENV=development`;
 
 export const DESIGN_SKILL_GENERATOR_PROMPT = `Je genereert een design skill (.claude/skills/design.md) voor Claude Code.
 
-Analyseer de wizard antwoorden over design stijl, kleuren, typografie en componenten.
-Genereer een uitgebreide design skill die Claude Code kan gebruiken bij het bouwen van de UI.
+Analyseer de wizard antwoorden en genereer een concreet, actionabel design skill bestand.
+Claude Code moet dit bestand kunnen lezen en direct weten welke Tailwind-classes, kleuren en fonts te gebruiken.
 
-De skill moet bevatten:
-1. Design systeem principes
-2. Kleurenpalet met CONCRETE CSS variabelen (bijv. --color-primary: #3b82f6)
-3. Tailwind configuratie (extend theme met de gekozen kleuren en fonts)
-4. Typografie richtlijnen met specifieke font families
-5. Component patronen (knoppen, kaarten, formulieren)
-6. Layout richtlijnen
-7. Responsive design regels
+## Verplichte secties (in deze volgorde)
+
+### 1. CSS Custom Properties
+Altijd een compleet :root { ... } blok met EXACTE hex-waarden:
+\`\`\`css
+:root {
+  --color-primary:    #1e40af;
+  --color-secondary:  #475569;
+  --color-accent:     #0284c7;
+  --color-background: #f8fafc;
+  --color-surface:    #ffffff;
+  --color-text:       #1e293b;
+  --color-text-muted: #64748b;
+  --color-border:     #cbd5e1;
+}
+\`\`\`
+Als screenshot-kleuren beschikbaar zijn: gebruik die EXACT. Anders: pas aan op de design stijl.
+
+### 2. Tailwind Config snippet
+Een concreet \`theme.extend\` blok dat de CSS vars gebruikt + de juiste fonts:
+\`\`\`js
+// tailwind.config.js → theme.extend:
+colors: {
+  primary: 'var(--color-primary)',
+  // ...
+},
+fontFamily: {
+  sans: ['Inter', 'sans-serif'],  // pas aan op gekozen stijl
+}
+\`\`\`
+
+### 3. Component Tailwind Classes
+Per componentStyle concrete klassen geven:
+- glassmorphism → gebruik backdrop-blur, bg-white/10, border-white/20
+- neumorphic → gebruik box-shadow arbitrary values [6px_6px_12px_...]
+- sharp (neubrutalism) → gebruik border-2 border-black shadow-[4px_4px_0px_#000] rounded-none
+- rounded → gebruik rounded-2xl shadow-sm border border-gray-100
+
+Voorbeeld formaat:
+\`\`\`
+card:   <klassen>
+button: <klassen>
+input:  <klassen>
+\`\`\`
+
+### 4. Typografie
+Heading/body/mono fonts met Google Fonts URL.
+Kies fonts passend bij de stijl:
+- minimalistisch → Inter/Inter
+- zakelijk → Plus Jakarta Sans/Inter
+- speels → Nunito/Nunito Sans
+- brutalistisch → Space Grotesk/Space Mono
+
+### 5. Animaties
+Gebruik tailwindcss-animate classes (animate-in, fade-in, zoom-in-95, slide-in-from-top-2).
+Vermeld relevante duration/easing modifiers.
+
+### 6. Special Effects (alleen als confirmedEffects aanwezig)
+Geef concrete Tailwind-klassen of CSS voor elk bevestigd effect:
+- aurora → gradient + blur-3xl + opacity + animate-pulse
+- glassmorphism → backdrop-blur + bg-white/10
+- neon/glow → shadow-[0_0_20px_rgba(...)]
+- grain → inline SVG filter als background-image
+
+### 7. Quick Start
+Drie concrete stappen:
+1. Google Fonts link toevoegen aan app.html
+2. CSS vars plakken in app.css
+3. Tailwind config aanpassen
 
 ## Screenshot Data
-Als er screenshot-analyse data in de antwoorden staat:
-- Gebruik de EXACTE kleurcodes uit de analyse in je CSS variabelen
-- Gebruik de gedetecteerde fonts als primaire font families
-- Neem de layout patronen en component stijlen over
-- Genereer image placeholders met aanbevolen afmetingen
+Als er screenshot-analyse beschikbaar is:
+- Gebruik de EXACTE kleurcodes
+- Gebruik de gedetecteerde font families
+- Beschrijf de gedetecteerde layout en spacing patronen
+- Vermeld de component stijlen (borderRadius, buttonStyle, cardStyle)
 
-## Quick Start Sectie
-Eindig met een "Quick Start" sectie die de developer vertelt:
-- Welke bestanden aan te passen (globals.css, tailwind.config, layout)
-- Welke fonts te installeren
-- Welke CSS variabelen te gebruiken
-
-Schrijf in markdown formaat.`;
+Schrijf in markdown formaat. Wees concreet — geen vage richtlijnen maar exacte klassen en waarden.`;
 
 export const AGENT_GENERATOR_PROMPT = `Je genereert aangepaste agent markdown bestanden voor een Claude Code project.
 

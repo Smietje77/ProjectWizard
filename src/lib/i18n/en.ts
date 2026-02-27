@@ -176,7 +176,8 @@ export default {
 		saveButton: 'Save',
 		saveComplete: 'Save and continue',
 		saveIncomplete: 'Continue (incomplete)',
-		formatWarning: 'Expected format: {format}'
+		formatWarning: 'Expected format: {format}',
+		saved: 'Environment variables saved — will be included in the download'
 	},
 	tools: {
 		ariaLabel: 'Required software',
