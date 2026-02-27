@@ -145,7 +145,6 @@
 		current_step: number;
 		answers: Array<{ categorie?: string; type?: string }>;
 		category_depth?: Record<string, 'onvoldoende' | 'basis' | 'voldoende'> | null;
-		is_complete?: boolean;
 		created_at: string;
 		updated_at: string;
 	}
@@ -165,11 +164,6 @@
 	function getProjectStatus(project: SavedProject) {
 		const answers = project.answers ?? [];
 		const realAnswers = answers.filter((a) => a.type !== 'skipped');
-
-		// Project met gegenereerde output is altijd volledig afgerond
-		if (project.is_complete) {
-			return { answerCount: realAnswers.length, progress: 100, isComplete: true };
-		}
 
 		// Gebruik opgeslagen category_depth als beschikbaar (zelfde logica als wizard store)
 		if (project.category_depth && Object.keys(project.category_depth).length > 0) {

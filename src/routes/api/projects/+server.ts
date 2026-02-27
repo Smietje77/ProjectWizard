@@ -42,12 +42,8 @@ export const GET: RequestHandler = async () => {
 		return sanitizedError(error, 'Fout bij ophalen van projecten');
 	}
 
-	// Strip generated_output (kan groot zijn), vervang door is_complete boolean
-	const projects = data.map(({ generated_output, ...p }) => ({
-		...p,
-		is_complete: Array.isArray((generated_output as { files?: unknown[] } | null)?.files) &&
-			((generated_output as { files: unknown[] }).files.length > 0)
-	}));
+	// Strip generated_output (kan groot zijn) — niet nodig voor dashboard
+	const projects = data.map(({ generated_output: _omit, ...p }) => p);
 
 	return json(projects);
 };
