@@ -297,8 +297,8 @@
 					</div>
 				{/if}
 
-				<!-- Download knop -->
-				{#if generationResult.files}
+				<!-- Download knop (alleen zichtbaar nadat env is opgeslagen of overgeslagen) -->
+				{#if generationResult.files && (envSaved || !generationResult.requiredEnvVars?.length)}
 					<button
 						type="button"
 						class="btn preset-filled-success-500 w-full py-3 text-lg"
@@ -370,7 +370,7 @@
 				</div>
 
 				<div class="flex flex-wrap gap-3 pt-2">
-					{#if generationResult.files}
+					{#if generationResult.files && (envSaved || !generationResult.requiredEnvVars?.length)}
 						<button
 							type="button"
 							class="btn preset-filled-success-500"

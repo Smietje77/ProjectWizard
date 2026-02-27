@@ -35,7 +35,7 @@ export const POST: RequestHandler = async ({ request }) => {
 export const GET: RequestHandler = async () => {
 	const { data, error } = await getSupabase()
 		.from('projects')
-		.select('id, name, description, current_step, answers, created_at, updated_at')
+		.select('id, name, description, current_step, answers, category_depth, created_at, updated_at')
 		.order('updated_at', { ascending: false });
 
 	if (error) {
