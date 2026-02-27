@@ -175,13 +175,22 @@
 				<div class="card space-y-4 border-2 border-success-500/30 bg-success-500/5 p-6">
 					<p class="text-xl font-medium text-success-500">{i18n.t.wizard.completionTitle}</p>
 					<p class="text-sm opacity-70">{i18n.t.wizard.completionMessage}</p>
-					<button
-						type="button"
-						class="btn preset-filled-success-500 px-8 text-lg"
-						onclick={handleFinish}
-					>
-						{i18n.t.wizard.finishButton}
-					</button>
+					<div class="flex flex-wrap gap-3">
+						<button
+							type="button"
+							class="btn preset-filled-success-500 px-8 text-lg"
+							onclick={handleFinish}
+						>
+							{i18n.t.wizard.finishButton}
+						</button>
+						<button
+							type="button"
+							class="btn preset-outlined-surface-500"
+							onclick={() => wizardStore.toggleHistory()}
+						>
+							{i18n.t.wizard.viewHistory}
+						</button>
+					</div>
 				</div>
 			{:else if wizardStore.isLoading}
 				<div class="card space-y-3 p-6">
