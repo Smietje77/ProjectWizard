@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS projects (
   current_step INTEGER DEFAULT 0,
   answers JSONB DEFAULT '[]'::jsonb,
   generated_output JSONB,
+  category_depth JSONB,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
