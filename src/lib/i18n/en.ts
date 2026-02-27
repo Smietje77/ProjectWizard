@@ -42,7 +42,7 @@ export default {
 		downloading: 'Loading...',
 		downloadNoOutput: 'This project has no generated files yet. Open the project via "View" and generate the project folder first.',
 		downloadFetchError: 'Could not load the project. Please try again.',
-		uploadDocHint: 'Or drag a document here (.txt, .md, .pdf)',
+		uploadDocHint: 'Or drag documents here (.txt, .md, .pdf)',
 		uploadDocButton: 'Add document',
 		uploadDocProcessing: 'Processing document...',
 		uploadDocReady: 'Document attached',
@@ -50,7 +50,11 @@ export default {
 		uploadDocTooLarge: 'Document must be 10MB or less',
 		uploadDocUnsupported: 'Only .txt, .md and .pdf files are supported',
 		uploadDocPreview: 'Preview',
-		uploadDocError: 'Error processing document'
+		uploadDocError: 'Error processing document',
+		uploadDocCount: 'documents attached',
+		uploadDocMax: 'Maximum 5 documents allowed',
+		uploadDocDuplicate: 'This file has already been added',
+		uploadDocAdd: 'Add another document'
 	},
 	wizard: {
 		questionCount: 'Question {current} / max {max}',

@@ -7,13 +7,15 @@
 	let description = $state('');
 	let isSubmitting = $state(false);
 
-	// Document upload state
-	let uploadedDoc = $state<{ name: string; size: number; text: string; summary: string } | null>(null);
+	// Document upload state (multi-doc)
+	type UploadedDoc = { name: string; size: number; text: string; summary: string };
+	let uploadedDocs = $state<UploadedDoc[]>([]);
 	let docProcessing = $state(false);
 	let docError = $state<string | null>(null);
 	let isDraggingDoc = $state(false);
 	let docInputRef = $state<HTMLInputElement | null>(null);
 
+	const MAX_DOCS = 5;
 	const MAX_DOC_SIZE = 10 * 1024 * 1024; // 10MB
 	const ALLOWED_TYPES = ['text/plain', 'text/markdown', 'application/pdf'];
 	const ALLOWED_EXTENSIONS = ['.txt', '.md', '.pdf'];
@@ -30,6 +32,14 @@
 	async function handleDocFile(file: File) {
 		docError = null;
 
+		if (uploadedDocs.length >= MAX_DOCS) {
+			docError = i18n.t.landing.uploadDocMax;
+			return;
+		}
+		if (uploadedDocs.some((d) => d.name === file.name)) {
+			docError = i18n.t.landing.uploadDocDuplicate;
+			return;
+		}
 		if (file.size > MAX_DOC_SIZE) {
 			docError = i18n.t.landing.uploadDocTooLarge;
 			return;
@@ -43,15 +53,14 @@
 
 		docProcessing = true;
 		try {
-			const base64 = await fileToBase64(file);
-
 			// Text bestanden client-side lezen
 			if (mimeType === 'text/plain' || mimeType === 'text/markdown') {
 				const text = await file.text();
 				const summary = text.slice(0, 500) + (text.length > 500 ? '...' : '');
-				uploadedDoc = { name: file.name, size: file.size, text, summary };
+				uploadedDocs = [...uploadedDocs, { name: file.name, size: file.size, text, summary }];
 			} else {
 				// PDF: via API endpoint
+				const base64 = await fileToBase64(file);
 				const res = await fetch('/api/extract-document', {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
@@ -64,7 +73,7 @@
 				}
 
 				const data = await res.json();
-				uploadedDoc = { name: file.name, size: file.size, text: data.text, summary: data.summary };
+				uploadedDocs = [...uploadedDocs, { name: file.name, size: file.size, text: data.text, summary: data.summary }];
 			}
 		} catch (err) {
 			console.error('Document verwerking mislukt:', err);
@@ -91,20 +100,28 @@
 	function handleDocDrop(e: DragEvent) {
 		e.preventDefault();
 		isDraggingDoc = false;
-		const file = e.dataTransfer?.files[0];
-		if (file) handleDocFile(file);
+		const files = Array.from(e.dataTransfer?.files ?? []);
+		for (const file of files) handleDocFile(file);
 	}
 
 	function handleDocSelect(e: Event) {
 		const input = e.target as HTMLInputElement;
-		const file = input.files?.[0];
-		if (file) handleDocFile(file);
+		const files = Array.from(input.files ?? []);
+		for (const file of files) handleDocFile(file);
 		input.value = '';
 	}
 
-	function removeDoc() {
-		uploadedDoc = null;
+	function removeDoc(index: number) {
+		uploadedDocs = uploadedDocs.filter((_, i) => i !== index);
 		docError = null;
+	}
+
+	function buildDocumentContext(): string | undefined {
+		if (uploadedDocs.length === 0) return undefined;
+		if (uploadedDocs.length === 1) return uploadedDocs[0].text;
+		return uploadedDocs
+			.map((doc, i) => `[Document ${i + 1}: ${doc.name}]\n${doc.text}`)
+			.join('\n\n---\n\n');
 	}
 
 	function formatFileSize(bytes: number): string {
@@ -133,6 +150,7 @@
 	}
 
 	const REQUIRED_CATEGORIES = [
+		'website_type',
 		'project_doel',
 		'doelgroep',
 		'kernfunctionaliteiten',
@@ -199,7 +217,7 @@
 	async function startWizard() {
 		if (!description.trim()) return;
 		isSubmitting = true;
-		wizardStore.startSession(description.trim(), uploadedDoc?.text);
+		wizardStore.startSession(description.trim(), buildDocumentContext());
 		goto('/wizard');
 	}
 
@@ -331,36 +349,39 @@
 				{/if}
 			</label>
 
-			<!-- Document upload zone -->
-			{#if uploadedDoc}
-				<div class="flex items-center gap-3 rounded-lg border border-success-500/30 bg-success-500/5 p-3">
-					<div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-success-500/20">
-						<span class="text-sm">&#128196;</span>
-					</div>
-					<div class="min-w-0 flex-1">
-						<p class="truncate text-sm font-medium">{uploadedDoc.name}</p>
-						<p class="text-xs opacity-50">{formatFileSize(uploadedDoc.size)} — {i18n.t.landing.uploadDocReady}</p>
-					</div>
-					<button
-						type="button"
-						class="btn btn-sm preset-outlined-error-500"
-						onclick={removeDoc}
-					>
-						{i18n.t.landing.uploadDocRemove}
-					</button>
+			<!-- Document upload zone (multi-doc) -->
+			{#if uploadedDocs.length > 0}
+				<div class="space-y-2">
+					{#each uploadedDocs as doc, i}
+						<div class="flex items-center gap-3 rounded-lg border border-success-500/30 bg-success-500/5 p-3">
+							<div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-success-500/20">
+								<span class="text-sm">&#128196;</span>
+							</div>
+							<div class="min-w-0 flex-1">
+								<p class="truncate text-sm font-medium">{doc.name}</p>
+								<p class="text-xs opacity-50">{formatFileSize(doc.size)}</p>
+							</div>
+							<button
+								type="button"
+								class="btn btn-sm preset-outlined-error-500 shrink-0"
+								onclick={() => removeDoc(i)}
+							>
+								{i18n.t.landing.uploadDocRemove}
+							</button>
+						</div>
+					{/each}
+					<p class="text-right text-xs opacity-40">
+						{uploadedDocs.length}/{MAX_DOCS} {i18n.t.landing.uploadDocCount}
+					</p>
 				</div>
-				{#if uploadedDoc.summary}
-					<details class="text-xs opacity-60">
-						<summary class="cursor-pointer">{i18n.t.landing.uploadDocPreview}</summary>
-						<pre class="mt-2 max-h-32 overflow-auto whitespace-pre-wrap rounded bg-surface-800 p-2">{uploadedDoc.summary}</pre>
-					</details>
-				{/if}
-			{:else if docProcessing}
+			{/if}
+
+			{#if docProcessing}
 				<div class="flex items-center gap-3 rounded-lg border border-surface-500/30 p-3">
 					<div class="h-5 w-5 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"></div>
 					<span class="text-sm opacity-70">{i18n.t.landing.uploadDocProcessing}</span>
 				</div>
-			{:else}
+			{:else if uploadedDocs.length < MAX_DOCS}
 				<!-- svelte-ignore a11y_no_static_element_interactions -->
 				<div
 					class="flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed p-4 transition-colors {isDraggingDoc ? 'border-primary-500 bg-primary-500/5' : 'border-surface-500/30 hover:border-surface-500/50'}"
@@ -372,12 +393,15 @@
 					role="button"
 					tabindex="0"
 				>
-					<span class="text-xs opacity-50">{i18n.t.landing.uploadDocHint}</span>
-					<span class="text-xs opacity-30">.txt, .md, .pdf — max 10MB</span>
+					<span class="text-xs opacity-50">
+						{uploadedDocs.length === 0 ? i18n.t.landing.uploadDocHint : i18n.t.landing.uploadDocAdd}
+					</span>
+					<span class="text-xs opacity-30">.txt, .md, .pdf — max 10MB per bestand</span>
 				</div>
 				<input
 					bind:this={docInputRef}
 					type="file"
+					multiple
 					accept={ALLOWED_EXTENSIONS.join(',')}
 					class="hidden"
 					onchange={handleDocSelect}

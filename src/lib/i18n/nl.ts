@@ -42,7 +42,7 @@ export default {
 		downloading: 'Bezig...',
 		downloadNoOutput: 'Dit project heeft nog geen gegenereerde bestanden. Open het project via "Bekijken" en genereer de projectmap eerst.',
 		downloadFetchError: 'Kon het project niet ophalen. Probeer het opnieuw.',
-		uploadDocHint: 'Of sleep een document hierheen (.txt, .md, .pdf)',
+		uploadDocHint: 'Of sleep documenten hierheen (.txt, .md, .pdf)',
 		uploadDocButton: 'Document toevoegen',
 		uploadDocProcessing: 'Document wordt verwerkt...',
 		uploadDocReady: 'Document meegestuurd',
@@ -50,7 +50,11 @@ export default {
 		uploadDocTooLarge: 'Document mag maximaal 10MB zijn',
 		uploadDocUnsupported: 'Alleen .txt, .md en .pdf bestanden worden ondersteund',
 		uploadDocPreview: 'Preview',
-		uploadDocError: 'Fout bij verwerken document'
+		uploadDocError: 'Fout bij verwerken document',
+		uploadDocCount: 'documenten meegestuurd',
+		uploadDocMax: 'Maximaal 5 documenten toegestaan',
+		uploadDocDuplicate: 'Dit bestand is al toegevoegd',
+		uploadDocAdd: 'Nog een document toevoegen'
 	},
 	wizard: {
 		questionCount: 'Vraag {current} / max {max}',
