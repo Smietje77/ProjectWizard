@@ -45,6 +45,11 @@ export interface WizardAnswers {
   componentStyle: 'rounded' | 'sharp' | 'neumorphic' | 'glassmorphism';
   screenshotAnalysis?: PageScreenshot[] | null;
   confirmedEffects?: ConfirmedEffects | null;
+
+  // Type-driven design fields (nieuw)
+  websiteType?: string;      // e.g. 'ecommerce', 'saas_b2b', 'portfolio'
+  uiStyleDetail?: string;    // e.g. 'bento', 'aurora', 'corporate', 'dark_modern'
+  selectedPalette?: string;  // e.g. 'saas_trust', 'luxury', 'dark_tech'
 }
 
 export interface ScreenshotAnalysis {

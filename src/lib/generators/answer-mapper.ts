@@ -570,6 +570,92 @@ function detectDomain(answers: WizardAnswer[]): { hasDomain: boolean; domainName
 }
 
 // ============================================
+// Type-driven design detectie functies
+// ============================================
+
+function detectWebsiteType(answers: WizardAnswer[]): string | undefined {
+	// Primair: zoek antwoord met expliciete categorie website_type
+	const typeAnswer = answers.find((a) => a.categorie === 'website_type' && a.type !== 'skipped');
+	if (typeAnswer) {
+		const ans = typeAnswer.answer.toLowerCase();
+		if (ans.includes('e-commerce') || ans.includes('webshop') || ans.includes('ecommerce')) return 'ecommerce';
+		if (ans.includes('b2b saas') || ans.includes('b2b platform')) return 'saas_b2b';
+		if (ans.includes('consumer saas') || ans.includes('consumer app')) return 'saas_consumer';
+		if (ans.includes('portfolio') || ans.includes('persoonlijke site')) return 'portfolio';
+		if (ans.includes('blog') || ans.includes('contentplatform')) return 'blog_content';
+		if (ans.includes('dashboard') || ans.includes('admin tool')) return 'dashboard_admin';
+		if (ans.includes('marketplace') || ans.includes('platform')) return 'marketplace';
+		if (ans.includes('community') || ans.includes('sociaal platform')) return 'community';
+		if (ans.includes('landing') || ans.includes('marketingsite') || ans.includes('marketing')) return 'landing';
+		if (ans.includes('saas')) return 'saas_consumer';
+		return typeAnswer.answer.trim(); // Geef raw antwoord terug als geen mapping
+	}
+
+	// Fallback: keyword matching over alle antwoorden
+	const text = allText(answers);
+	if (text.includes('webshop') || text.includes('e-commerce') || text.includes('ecommerce')) return 'ecommerce';
+	if (text.includes('dashboard') && (text.includes('admin') || text.includes('beheer'))) return 'dashboard_admin';
+	if (text.includes('portfolio')) return 'portfolio';
+	if (text.includes('blog') && !text.includes('dashboard')) return 'blog_content';
+	if (text.includes('landing page') || text.includes('marketingsite')) return 'landing';
+	if (text.includes('marketplace')) return 'marketplace';
+	if (text.includes('community')) return 'community';
+	if (text.includes('saas') && text.includes('b2b')) return 'saas_b2b';
+	if (text.includes('saas')) return 'saas_consumer';
+
+	return undefined;
+}
+
+function detectUiStyleDetail(answers: WizardAnswer[]): string | undefined {
+	const UI_STYLE_KEYS = [
+		'rounded', 'glassmorphism', 'neumorphic', 'sharp', 'minimalist',
+		'material', 'claymorphism', 'bento', 'aurora', 'retro', 'corporate', 'dark_modern'
+	];
+
+	// Zoek in design-antwoorden
+	const designAnswers = answers.filter((a) => a.type !== 'skipped' && a.specialist === 'design');
+	const designText = designAnswers.map((a) => a.answer.toLowerCase()).join(' ');
+	for (const key of UI_STYLE_KEYS) {
+		if (designText.includes(key)) return key;
+	}
+
+	// Fallback: zoek in alle antwoorden
+	const text = allText(answers);
+	for (const key of UI_STYLE_KEYS) {
+		if (text.includes(key)) return key;
+	}
+
+	return undefined;
+}
+
+function detectSelectedPalette(answers: WizardAnswer[]): string | undefined {
+	const PALETTE_MAPPING: Array<{ keywords: string[]; key: string }> = [
+		{ keywords: ['saas vertrouwen', 'vertrouwen (#1e40af)', 'saas trust'], key: 'saas_trust' },
+		{ keywords: ['saas modern', 'modern (#7c3aed)', 'saas violet'], key: 'saas_violet' },
+		{ keywords: ['e-commerce energie', 'energie (#dc2626)', 'energie (rood'], key: 'ecommerce_warm' },
+		{ keywords: ['e-commerce fris', 'fris (#0f766e)', 'fris (teal'], key: 'ecommerce_clean' },
+		{ keywords: ['healthcare', 'kalm (#0369a1)'], key: 'healthcare' },
+		{ keywords: ['fintech solide', 'fintech (#1e3a5f)'], key: 'fintech' },
+		{ keywords: ['creatief & levendig', 'levendig (#9333ea)', 'creatief (#9333ea)'], key: 'creative' },
+		{ keywords: ['minimaal donker', 'donker (#18181b)'], key: 'minimal_dark' },
+		{ keywords: ['redactioneel (#1c1917)', 'redactioneel (zwart'], key: 'editorial' },
+		{ keywords: ['natuur & duurzaam', 'natuur (#166534)'], key: 'nature' },
+		{ keywords: ['luxe & premium', 'premium (#1c1917)', 'luxe (#1c1917)'], key: 'luxury' },
+		{ keywords: ['speels & kleurrijk', 'kleurrijk (#7c3aed)'], key: 'playful' },
+		{ keywords: ['corporate klassiek', 'corporate (#1d4ed8)'], key: 'corporate_blue' },
+		{ keywords: ['dark tech/ai', 'dark tech (#020617)', 'tech/ai (#020617)'], key: 'dark_tech' },
+		{ keywords: ['warm neutraal', 'neutraal (#92400e)'], key: 'warm_neutral' }
+	];
+
+	const text = allText(answers);
+	for (const { keywords, key } of PALETTE_MAPPING) {
+		if (keywords.some((k) => text.includes(k))) return key;
+	}
+
+	return undefined;
+}
+
+// ============================================
 // Design detectie functies
 // ============================================
 
@@ -798,6 +884,11 @@ export function mapAnswersToGSD(
 		typography: detectTypography(answers),
 		componentStyle: detectComponentStyle(answers),
 		screenshotAnalysis: extractScreenshotAnalysis(answers),
-		confirmedEffects: extractConfirmedEffects(answers)
+		confirmedEffects: extractConfirmedEffects(answers),
+
+		// Type-driven design
+		websiteType: detectWebsiteType(answers),
+		uiStyleDetail: detectUiStyleDetail(answers),
+		selectedPalette: detectSelectedPalette(answers)
 	};
 }

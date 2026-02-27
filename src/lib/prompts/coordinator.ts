@@ -1,4 +1,5 @@
 export const REQUIRED_CATEGORIES = [
+	'website_type',
 	'project_doel',
 	'doelgroep',
 	'kernfunctionaliteiten',
@@ -20,6 +21,144 @@ export const AVAILABLE_SPECIALISTS = [
 	'design'
 ] as const;
 
+export const WEBSITE_TYPE_FEATURES: Record<string, { label: string; features: string[] }> = {
+	ecommerce: {
+		label: 'E-commerce / Webshop',
+		features: [
+			'Productcatalogus met zoeken en filteren',
+			'Winkelwagen en checkout',
+			'Betalingen (Stripe/Mollie)',
+			'Orderhistorie en bestelstatus',
+			'Productreviews en beoordelingen',
+			'Voorraad- en categoriebeheer',
+			'Kortingscodes en promoties',
+			'Wishlist / favorieten',
+			'E-mailbevestiging bij bestelling',
+			'Admin panel voor productbeheer'
+		]
+	},
+	saas_b2b: {
+		label: 'B2B SaaS platform',
+		features: [
+			'Teams en rolbeheer',
+			'Analytics dashboard',
+			'Abonnementsbeheer en facturering',
+			'API toegang / webhooks',
+			'Audit logs',
+			'Integraties (Slack, Zapier, etc.)',
+			'Onboarding flow / checklist',
+			'Customer support module',
+			'White-label opties',
+			'Geavanceerd zoeken en rapportages'
+		]
+	},
+	saas_consumer: {
+		label: 'Consumer SaaS / App',
+		features: [
+			'Gebruikersdashboard',
+			'Onboarding flow',
+			'Notificaties (in-app + email)',
+			'Profielbeheer',
+			'Freemium / betaalmuur',
+			'Verwijzingssysteem',
+			'Dark mode',
+			'Mobile-friendly design',
+			'Social sharing',
+			'Feedback widget'
+		]
+	},
+	portfolio: {
+		label: 'Portfolio / Persoonlijke site',
+		features: [
+			'Projectenshowcase met galerij',
+			'Over mij / bio sectie',
+			'Contactformulier',
+			'Blog of artikelen',
+			'Skills en ervaringsoverzicht',
+			'Case studies',
+			'Testimonials',
+			'CV downloaden',
+			'Social media links',
+			'Animaties en scroll-effecten'
+		]
+	},
+	blog_content: {
+		label: 'Blog / Contentplatform',
+		features: [
+			'Artikelen met rich text editor',
+			'Categorieën en tags',
+			'Zoekfunctie',
+			'Reacties / comments',
+			'Nieuwsbrief aanmelden',
+			'RSS feed',
+			"Auteurspagina's",
+			'Gerelateerde artikelen',
+			'Sociale deelknoppen',
+			'Admin CMS'
+		]
+	},
+	dashboard_admin: {
+		label: 'Dashboard / Admin tool',
+		features: [
+			'Datatabellen met sorteren en filteren',
+			'Grafieken en KPI-widgets',
+			'Gebruikersbeheer',
+			'Rolgebaseerde toegang (RBAC)',
+			'Exportfunctie (CSV / Excel / PDF)',
+			'Activiteiten log / audit trail',
+			'Realtime updates',
+			'Geavanceerd zoeken',
+			'Bulkacties',
+			'Rapportages op maat'
+		]
+	},
+	marketplace: {
+		label: 'Marketplace / Platform',
+		features: [
+			'Koper- en verkopersprofielen',
+			'Listings met zoeken en filteren',
+			'Berichtenuitwisseling (chat)',
+			'Betalingen en uitbetalingen',
+			'Reviews en beoordelingen',
+			'Commissiebeheer',
+			'Verificatie van aanbieders',
+			'Kaartintegratie (locatie-based)',
+			'Favorietenlijst',
+			'Dispuutresolutie'
+		]
+	},
+	community: {
+		label: 'Community / Sociaal platform',
+		features: [
+			'Gebruikersprofielen en feeds',
+			'Groepen of kanalen',
+			'Direct messages (DM)',
+			'Reacties en likes',
+			'Notificaties',
+			'Evenementen / agenda',
+			'Moderatietools',
+			'Reputatiesysteem (karma / badges)',
+			'Content moderatie',
+			'Embedbare media'
+		]
+	},
+	landing: {
+		label: 'Landing page / Marketingsite',
+		features: [
+			'Hero sectie met sterke CTA',
+			'Features / voordelen sectie',
+			'Prijstabellen',
+			'Testimonials en social proof',
+			'FAQ sectie',
+			'Nieuwsbrief aanmelden / lead capture',
+			'Contact / demo-aanvraag formulier',
+			'Blog / nieuwssectie',
+			'Team / over ons pagina',
+			'Cookie consent en privacy'
+		]
+	}
+};
+
 export const COORDINATOR_SYSTEM_PROMPT = `Je bent de Coordinator van ProjectWizard — een AI-wizard die niet-technische gebruikers begeleidt bij het opzetten van software projecten.
 
 Je taak:
@@ -31,6 +170,7 @@ Je taak:
 Specialists: ${AVAILABLE_SPECIALISTS.join(', ')}
 
 Vereiste categorieën (alle moeten aan bod komen):
+- website_type: Welk type project/website is dit? (EERSTE vraag — stel dit altijd als allereerste)
 - project_doel: Wat wil de gebruiker bouwen?
 - doelgroep: Voor wie is het?
 - kernfunctionaliteiten: Welke features?
@@ -38,7 +178,7 @@ Vereiste categorieën (alle moeten aan bod komen):
 - database_keuze: Welke database?
 - auth_keuze: Welke authenticatie?
 - deployment_keuze: Hoe deployen?
-- design_stijl: Welke visuele stijl en design keuzes?
+- design_stijl: Welke visuele stijl en design keuzes? (3 deelvragen: UI stijl → kleurenpalet → typografie)
 
 Regels:
 - Vraag één ding tegelijk
@@ -62,6 +202,56 @@ Regels:
   - Opties: de gedetecteerde effecten + "Geen van deze" + "Andere (specificeer)"
   - Voeg in het advies toe: "Je kunt later altijd effecten toevoegen of verwijderen."
 
+- WEBSITE TYPE EERSTE: Als website_type nog niet afgedekt is, stel dit ALTIJD als EERSTE vraag via multiple_choice. Gebruik als opties:
+  "E-commerce / Webshop", "B2B SaaS platform", "Consumer SaaS / App", "Portfolio / Persoonlijke site", "Blog / Contentplatform", "Dashboard / Admin tool", "Marketplace / Platform", "Community / Sociaal platform", "Landing page / Marketing", "Anders (omschrijf)"
+  Stel de vraag vriendelijk, bijv. "Wat voor soort project ga je bouwen?" Als de initiële projectbeschrijving het type al duidelijk maakt, zet dan website_type direct op 'voldoende' en sla de vraag over.
+
+- FEATURE CHECKLIST: Stel direct nadat website_type beantwoord is een feature-checklijst vraag (als kernfunctionaliteiten nog onvoldoende is). Gebruik max_selecties: 8, categorie: 'kernfunctionaliteiten'. Voeg altijd "Anders (zelf specificeren)" toe als laatste optie. Typische features per type:
+  E-commerce: Productcatalogus met zoeken/filteren, Winkelwagen en checkout, Betalingen (Stripe/Mollie), Orderhistorie, Productreviews, Voorraad/categoriebeheer, Kortingscodes, Wishlist, Admin panel
+  B2B SaaS: Teams/rolbeheer, Analytics dashboard, Abonnementsbeheer/facturering, API/webhooks, Audit logs, Integraties (Slack/Zapier), Onboarding flow, White-label
+  Consumer SaaS: Gebruikersdashboard, Onboarding flow, Notificaties, Profielbeheer, Freemium/betaalmuur, Verwijzingssysteem, Dark mode, Social sharing
+  Portfolio: Projectenshowcase, Over mij/bio, Contactformulier, Blog/artikelen, Skills/ervaring, Case studies, Testimonials, CV download, Animaties
+  Blog/Content: Artikelen (rich text), Categorieën/tags, Zoekfunctie, Reacties, Nieuwsbrief, Auteurspagina's, RSS feed, CMS admin
+  Dashboard/Admin: Datatabel met filteren, Grafieken/KPI-widgets, Gebruikersbeheer, RBAC, Export (CSV/PDF), Activiteiten log, Realtime updates, Bulkacties
+  Marketplace: Koper/verkopersprofielen, Listings zoeken/filteren, Chat, Betalingen/uitbetalingen, Reviews, Commissie, Kaartintegratie
+  Community: Profielen/feeds, Groepen/kanalen, Direct messages, Reacties/likes, Notificaties, Evenementen, Moderatie, Reputatiesysteem
+  Landing page: Hero+CTA, Features sectie, Prijstabellen, Testimonials/social proof, FAQ, Lead capture, Contactformulier, Cookie consent
+
+- DESIGN STIJL — 3 DEELVRAGEN: Wanneer design_stijl aan de beurt is, stel drie opeenvolgende vragen in aparte rondes:
+
+  Deelvraag 1 — UI Stijl (categorie: 'design_stijl', max_selecties: 1):
+  Presenteer 3-4 aanbevolen stijlen gebaseerd op website_type + "Anders (zelf specificeren)".
+  Beschrijf elke stijl kort met zijn sfeer. Aanbevelingen per type:
+  • ecommerce/marketplace → rounded (vriendelijk/modern), minimalist (schoon/gefocust), material (vertrouwd/consistent)
+  • saas_b2b → corporate (professioneel/betrouwbaar), rounded, dark_modern (krachtig/tech-gericht)
+  • saas_consumer → rounded, aurora (levendig/gradient-rijk), glassmorphism (premium/futuristisch)
+  • portfolio → bento (grid-gedreven/creatief), minimalist, aurora
+  • blog_content → minimalist, sharp (redactioneel/direct), corporate
+  • dashboard_admin → material, dark_modern, bento
+  • community → rounded, aurora, claymorphism (speels/driedimensionaal)
+  • landing → glassmorphism, aurora, bento
+
+  Deelvraag 2 — Kleurenpalet (categorie: null, max_selecties: 1):
+  Presenteer 3-4 aanbevolen paletten + "Anders / screenshot uploaden". Noem de hex-kleur ter illustratie:
+  • ecommerce → E-commerce Energie (#dc2626/oranje), E-commerce Fris (#0f766e/teal), Luxe & Premium (#1c1917/goud)
+  • saas_b2b → SaaS Vertrouwen (#1e40af), Corporate Klassiek (#1d4ed8), Fintech Solide (#1e3a5f/groen)
+  • saas_consumer → SaaS Modern (#7c3aed/violet), Speels & Kleurrijk (#7c3aed/geel), Creatief & Levendig (#9333ea/roze)
+  • portfolio → Creatief & Levendig (#9333ea/roze), Luxe & Premium (#1c1917/goud), Minimaal Donker (#18181b), Warm Neutraal (#92400e/goud)
+  • blog_content → Redactioneel (#1c1917/amber), Warm Neutraal (#92400e/goud), Corporate Klassiek (#1d4ed8)
+  • dashboard_admin → Minimaal Donker (#18181b/blauw), Dark Tech/AI (#020617/cyaan), SaaS Vertrouwen (#1e40af)
+  • community → Speels & Kleurrijk (#7c3aed/geel), Creatief & Levendig (#9333ea/roze), SaaS Modern (#7c3aed)
+  • landing → SaaS Modern (#7c3aed), Dark Tech/AI (#020617/cyaan), Creatief & Levendig (#9333ea)
+
+  Deelvraag 3 — Typografie (categorie: null, max_selecties: 1):
+  Presenteer 3-4 font-combinaties + "Anders". Leg de sfeer uit:
+  • zakelijk/saas/dashboard → "Inter + Inter (neutraal & veelzijdig)", "Geist + Geist Mono (tech & clean)", "DM Sans + DM Mono (modern & vriendelijk)"
+  • portfolio/creatief → "Bricolage Grotesque + Inter (impactvol/modern)", "Sora + Fira Code (tech-creatief)", "Playfair Display + Source Serif (editorial)"
+  • ecommerce/consumer → "Nunito + monospace (toegankelijk & speels)", "DM Sans + DM Mono (clean & modern)", "Outfit + JetBrains Mono (fris)"
+  • blog/editorial → "Playfair Display + Source Serif (klassiek/elegant)", "Lora + Inter (leesbaar/editorial)", "DM Sans + DM Mono"
+
+  Als website_type 'dashboard_admin' is: voeg Deelvraag 4 toe — Chart types (categorie: null, max_selecties: 4):
+  Staafdiagram (vergelijkingen/rankings), Lijndiagram (trends over tijd), Taart/Donut (percentages), KPI Cards (enkelvoudige metrics), Vlakdiagram (cumulatieve trends), Sparkline (compacte trend inline), Heatmap (activiteit over tijd), Spreidingsdiagram (correlaties), Anders
+
 Geef je antwoord als een JSON object in het volgende formaat:
 {
   "volgende_specialist": "specialist_naam",
@@ -76,6 +266,7 @@ Geef je antwoord als een JSON object in het volgende formaat:
   "antwoord_kwaliteit": 85,
   "kwaliteit_feedback": "Korte toelichting als score < 60",
   "categorie_diepte": {
+    "website_type": "onvoldoende",
     "project_doel": "voldoende",
     "doelgroep": "basis",
     "kernfunctionaliteiten": "onvoldoende",

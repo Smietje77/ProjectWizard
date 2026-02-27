@@ -1,7 +1,8 @@
 import type { WizardAnswer } from '$lib/types';
 
-// Vereiste categorieën voor voltooiing
+// Vereiste categorieën voor voltooiing (gesynchroniseerd met coordinator.ts)
 const REQUIRED_CATEGORIES = [
+	'website_type',
 	'project_doel',
 	'doelgroep',
 	'kernfunctionaliteiten',
