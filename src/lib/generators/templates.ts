@@ -8,7 +8,11 @@ import {
 	EFFECT_ARCHETYPES,
 	FONT_PAIRINGS,
 	SPECIAL_EFFECTS,
-	ANIMATION_CLASSES
+	ANIMATION_CLASSES,
+	UX_GUIDELINES,
+	DESIGN_REASONING,
+	INDUSTRY_PALETTES,
+	UI_STYLES
 } from '$lib/data/design-tokens';
 
 // ─── Utility ───────────────────────────────────────────────────────────────
@@ -803,8 +807,9 @@ export function generateDesignSkillTemplate(answers: WizardAnswers): string {
   const confirmedEffects = answers.confirmedEffects;
   const isCustomNoScreenshot = answers.designStyle === 'custom' && !screenshotColors;
 
-  // Kleurenpalet: screenshot heeft prioriteit, anders gecureerde fallback
-  const palette = screenshotColors ?? COLOR_PALETTES[answers.designStyle] ?? COLOR_PALETTES['zakelijk'];
+  // Kleurenpalet: screenshot > industry palette (specifiek) > design style (generiek) > zakelijk
+  const industryPalette = answers.selectedPalette ? INDUSTRY_PALETTES[answers.selectedPalette] : undefined;
+  const palette = screenshotColors ?? industryPalette ?? COLOR_PALETTES[answers.designStyle] ?? COLOR_PALETTES['zakelijk'];
   const isDark = answers.colorScheme === 'dark';
   let bg = isDark ? (palette.darkBackground ?? palette.background) : palette.background;
   let surface = isDark ? (palette.darkSurface ?? palette.surface) : palette.surface;
@@ -837,8 +842,10 @@ export function generateDesignSkillTemplate(answers: WizardAnswers): string {
   const headingFont = screenshotTypo?.headingFont ?? fonts.heading;
   const bodyFont = screenshotTypo?.bodyFont ?? fonts.body;
 
-  // Effect archetype op basis van componentStyle
-  const effects = EFFECT_ARCHETYPES[answers.componentStyle] ?? EFFECT_ARCHETYPES['rounded'];
+  // Component classes: UI_STYLES (12 stijlen, specifiek) > EFFECT_ARCHETYPES (4, generiek) > rounded
+  const uiStyle = answers.uiStyleDetail ? UI_STYLES[answers.uiStyleDetail] : undefined;
+  const effects = uiStyle ?? EFFECT_ARCHETYPES[answers.componentStyle] ?? EFFECT_ARCHETYPES['rounded'];
+  const effectStyleName = answers.uiStyleDetail ?? answers.componentStyle;
 
   // Special effects op basis van confirmedEffects
   const activeEffectSnippets: Array<{ name: string; snippet: string }> = [];
@@ -860,6 +867,27 @@ export function generateDesignSkillTemplate(answers: WizardAnswers): string {
     }
   }
 
+  // WebsiteType → UX_GUIDELINES key mapping
+  const uxKeyMap: Record<string, string> = {
+    ecommerce: 'ecommerce',
+    saas_b2b: 'saas',
+    saas_consumer: 'saas',
+    portfolio: 'portfolio',
+    blog_content: 'blog',
+    dashboard_admin: 'dashboard',
+    marketplace: 'marketplace',
+    community: 'community',
+    landing: 'landing'
+  };
+  const uxKey = answers.websiteType ? uxKeyMap[answers.websiteType] : undefined;
+  const uxGuidelines = uxKey ? UX_GUIDELINES[uxKey] : undefined;
+  const designReasoning = answers.websiteType ? DESIGN_REASONING[answers.websiteType] : undefined;
+
+  // Metadata voor tabel
+  const paletteLabel = industryPalette?.label;
+  const paletteMood = industryPalette?.mood;
+  const styleMood = uiStyle?.mood;
+
   return `# Design Skill — ${answers.projectName}
 ${isCustomNoScreenshot ? `
 > ⚠️ Custom stijl: geen screenshot of kleurkeuze aangeleverd.
@@ -872,9 +900,23 @@ ${isCustomNoScreenshot ? `
 | Stijl | ${answers.designStyle} |
 | Kleurschema | ${answers.colorScheme} |
 | Typography | ${answers.typography} |
-| Component Style | ${answers.componentStyle} |
+| Component Style | ${effectStyleName} |
 | UI Library | ${uiLibName(answers.uiLibrary)} |
+${paletteLabel ? `| Kleurenpalet | ${paletteLabel} — ${paletteMood} |` : ''}
+${styleMood ? `| UI Mood | ${styleMood} |` : ''}
+${designReasoning?.darkModeDefault ? `| Dark Mode | Aanbevolen voor dit projecttype |` : ''}
+${designReasoning ? `
+---
 
+## Design Strategie
+
+> ${designReasoning.rationale}
+
+**Aanbevolen combinatie voor dit projecttype:**
+- **UI Stijlen:** ${designReasoning.recommendedStyles.join(', ')}
+- **Kleurpaletten:** ${designReasoning.recommendedPalettes.join(', ')}
+- **Fonts:** ${designReasoning.recommendedFonts.join(', ')}
+` : ''}
 ---
 
 ## CSS Custom Properties
@@ -917,7 +959,7 @@ ${fonts.tailwindConfig}
 
 ---
 
-## Component Tailwind Classes (${answers.componentStyle})
+## Component Tailwind Classes (${effectStyleName})
 
 \`\`\`
 card:   ${effects.card}
@@ -1001,6 +1043,23 @@ ${confirmedEffects.animationPreferences.map(e => `- ${e}`).join('\n')}
 3. **Tailwind config** — voeg het \`theme.extend\` blok toe aan \`tailwind.config.js\`
 
 Daarna kun je direct Tailwind-classes als \`text-primary\`, \`bg-surface\`, \`border-border\` gebruiken.
+${uxGuidelines ? `
+---
+
+## Layout & UX Principes
+
+### Regels
+${uxGuidelines.rules.map(r => `- ${r}`).join('\n')}
+
+### Vermijd (anti-patterns)
+${uxGuidelines.antiPatterns.map(a => `- ❌ ${a}`).join('\n')}
+
+### Kleurgebruik
+${uxGuidelines.colorRule}
+
+### Layout
+${uxGuidelines.layoutTip}
+` : ''}
 `;
 }
 

@@ -163,6 +163,23 @@ Drie concrete stappen:
 2. CSS vars plakken in app.css
 3. Tailwind config aanpassen
 
+### 8. Design Strategie (als websiteType beschikbaar)
+Voeg een sectie "Design Strategie" toe die uitlegt WAAROM de gekozen stijl past bij het projecttype.
+Gebruik deze context per type:
+- E-commerce: vertrouwen en conversie centraal, productfoto's dominant, CTA altijd zichtbaar
+- SaaS B2B: professionaliteit, data-gedreven, gestructureerde layouts
+- SaaS Consumer: persoonlijk, visueel aantrekkelijk, onboarding en emotie belangrijk
+- Portfolio: opvallen en indruk maken, creatief, werk centraal
+- Blog: leesbaarheid en typografie, max 65-70 karakters per regel, minimale afleiding
+- Dashboard: overzicht en efficiency, consistent kleurgebruik voor statussen (groen/rood/oranje/blauw)
+- Marketplace: vertrouwen tussen vreemden, transparant, review-gedreven
+- Community: verbinding en betrokkenheid, warm en toegankelijk
+- Landing: eerste indruk en conversie, één sterke CTA per sectie
+
+### 9. Layout & UX Principes (als websiteType beschikbaar)
+Voeg een sectie met 3-5 projecttype-specifieke UX regels, plus 2-3 anti-patterns om te vermijden.
+Inclusief kleurgebruik regel en layout tip.
+
 ## Screenshot Data
 Als er screenshot-analyse beschikbaar is:
 - Gebruik de EXACTE kleurcodes
