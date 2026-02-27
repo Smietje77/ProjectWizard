@@ -311,9 +311,12 @@ ${answers.requiredMcps.length > 0 ? answers.requiredMcps.map(m => `- ${m}`).join
 ${screenshotSection}
 ## Projectstructuur
 
-Zie \`.planning/\` folder voor volledige GSD planning configuratie.
+Zie \`.planning/\` folder voor projectcontext (INITIAL_CONTEXT.md, REQUIREMENTS.md, ROADMAP.md).
 Zie \`TEAM.md\` voor agent team configuratie.
 Zie \`agents/\` folder voor individuele agent instructies.
+
+> **Note:** De \`.planning/\` bestanden zijn gegenereerd door ProjectWizard — geen GSD workflow.
+> GSD-commando's zijn niet nodig. Gebruik de bestanden direct als context.
 `;
 }
 
@@ -375,7 +378,17 @@ ${answers.hasDomain ? `- Configureer domein: ${answers.domainName}` : ''}
 - Navigatie: ${answers.navigationPattern} layout
 - TypeScript strict mode
 - Elke component in eigen bestand
-- Gebruik \`.planning/\` voor project tracking
+
+## Planning Context
+
+De `.planning/` map bevat de volledige projectcontext die door ProjectWizard is gegenereerd:
+- \`INITIAL_CONTEXT.md\` — volledig projectoverzicht en achtergrond
+- \`REQUIREMENTS.md\` — alle functionele en technische eisen
+- \`ROADMAP.md\` — fases en deliverables
+
+**Gebruik deze bestanden als context — GSD-commando's zijn NIET nodig.**
+Als Claude Code een GSD-waarschuwing toont ("Project already initialized"), negeer deze dan.
+Begin gewoon met de implementatie op basis van bovenstaande instructies.
 `;
 }
 
@@ -534,7 +547,7 @@ Zie \`TEAM.md\` voor het volledige team en hun spawn-instructies.
 2. **Delegeer** via de spawn-instructies in TEAM.md
 3. **Review** het resultaat van elke specialist
 4. **Integreer** de resultaten in het geheel
-5. **Update** \`.planning/STATE.md\` na elke milestone
+5. **Documenteer** voltooide taken in de voortgang
 
 ## Planning
 
@@ -544,9 +557,9 @@ ${answers.coreFeatures.filter(f => f.priority === 'must').map((f, i) => `${i + 1
 ## Regels
 
 - Eén specialist tegelijk per taak
-- Altijd \`.planning/STATE.md\` updaten na voltooiing
+- Lees \`.planning/INITIAL_CONTEXT.md\` voor achtergrond bij elke nieuwe sessie
 - Bij twijfel: vraag de gebruiker
-- Volg de GSD config in \`.planning/config.json\`
+- Gebruik \`.planning/REQUIREMENTS.md\` als referentie voor scope
 - Test elke feature voor je doorgaat naar de volgende
 `;
 }
