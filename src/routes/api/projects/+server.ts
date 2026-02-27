@@ -35,12 +35,19 @@ export const POST: RequestHandler = async ({ request }) => {
 export const GET: RequestHandler = async () => {
 	const { data, error } = await getSupabase()
 		.from('projects')
-		.select('id, name, description, current_step, answers, category_depth, created_at, updated_at')
+		.select('id, name, description, current_step, answers, category_depth, generated_output, created_at, updated_at')
 		.order('updated_at', { ascending: false });
 
 	if (error) {
 		return sanitizedError(error, 'Fout bij ophalen van projecten');
 	}
 
-	return json(data);
+	// Strip generated_output (kan groot zijn), vervang door is_complete boolean
+	const projects = data.map(({ generated_output, ...p }) => ({
+		...p,
+		is_complete: Array.isArray((generated_output as { files?: unknown[] } | null)?.files) &&
+			((generated_output as { files: unknown[] }).files.length > 0)
+	}));
+
+	return json(projects);
 };
