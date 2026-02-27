@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS projects (
   answers JSONB DEFAULT '[]'::jsonb,
   generated_output JSONB,
   category_depth JSONB,
+  is_complete BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

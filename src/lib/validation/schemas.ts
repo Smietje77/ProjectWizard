@@ -100,6 +100,7 @@ export const updateProjectSchema = z
 		answers: z.array(wizardAnswerSchema).optional(),
 		current_step: z.number().int().min(0).optional(),
 		generated_output: generatedOutputSchema.nullable().optional(),
-		category_depth: z.record(z.string(), z.enum(['onvoldoende', 'basis', 'voldoende'])).nullable().optional()
+		category_depth: z.record(z.string(), z.enum(['onvoldoende', 'basis', 'voldoende'])).nullable().optional(),
+		is_complete: z.boolean().optional()
 	})
 	.strict();

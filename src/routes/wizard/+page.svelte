@@ -142,8 +142,20 @@
 		await fetchNextQuestion(newAnswer);
 	}
 
-	function handleFinish() {
+	async function handleFinish() {
 		wizardStore.isComplete = true;
+		// Sla is_complete: true op als definitieve afrondingsstatus
+		if (wizardStore.projectId) {
+			try {
+				await fetch(`/api/projects/${wizardStore.projectId}`, {
+					method: 'PATCH',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ is_complete: true })
+				});
+			} catch (e) {
+				console.error('is_complete opslaan mislukt:', e);
+			}
+		}
 		saveToSupabase();
 		goto('/wizard/preview');
 	}
