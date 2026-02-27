@@ -806,8 +806,31 @@ export function generateDesignSkillTemplate(answers: WizardAnswers): string {
   // Kleurenpalet: screenshot heeft prioriteit, anders gecureerde fallback
   const palette = screenshotColors ?? COLOR_PALETTES[answers.designStyle] ?? COLOR_PALETTES['zakelijk'];
   const isDark = answers.colorScheme === 'dark';
-  const bg = isDark ? (palette.darkBackground ?? palette.background) : palette.background;
-  const surface = isDark ? (palette.darkSurface ?? palette.surface) : palette.surface;
+  let bg = isDark ? (palette.darkBackground ?? palette.background) : palette.background;
+  let surface = isDark ? (palette.darkSurface ?? palette.surface) : palette.surface;
+
+  // Cross-variabele correcties — sommige componentStyles vereisen een specifieke achtergrond
+  let componentNote = '';
+  if (!screenshotColors) {
+    if (answers.componentStyle === 'glassmorphism') {
+      // Glassmorphism heeft een donkere/gradiënt achtergrond nodig voor het frosted-glass effect.
+      // Een witte achtergrond maakt de backdrop-blur onzichtbaar.
+      bg = palette.darkBackground ?? '#0f172a';
+      surface = 'rgba(255, 255, 255, 0.08)';
+      componentNote = `> ℹ️ **Glassmorphism**: achtergrond is aangepast naar donker (${bg}).
+> Voeg een gradient toe als achtergrond van de pagina:
+> \`bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900\`
+> De \`backdrop-blur\` effecten zijn alleen zichtbaar op een donkere/gekleurde ondergrond.`;
+    } else if (answers.componentStyle === 'neumorphic') {
+      // Neumorphic shadows zijn gekalibreerd op #e0e5ec (lichtgrijs-blauw).
+      // Een afwijkende achtergrondkleur maakt de schaduwen onrealistisch.
+      bg = '#e0e5ec';
+      surface = '#e0e5ec';
+      componentNote = `> ℹ️ **Neumorphism**: achtergrond is ingesteld op \`#e0e5ec\`.
+> De shadow-waarden (\`#b8bec7\` donker, \`#ffffff\` licht) zijn hierop gekalibreerd.
+> Pas accent/primary kleuren aan voor knoppen en highlights — niet de achtergrond.`;
+    }
+  }
 
   // Font pairing: screenshot fonts hebben prioriteit
   const fonts = FONT_PAIRINGS[answers.designStyle] ?? FONT_PAIRINGS['zakelijk'];
@@ -871,6 +894,7 @@ Voeg toe aan \`src/app.css\` of \`globals.css\`:
 }
 \`\`\`
 
+${componentNote ? `\n${componentNote}\n` : ''}
 ---
 
 ## Tailwind Config
