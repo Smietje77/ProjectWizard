@@ -41,6 +41,19 @@ De Coordinator bepaalt of compleet op basis van:
 - Tech stack volledig bepaald
 - MCP's geïdentificeerd
 
+### 5. Skill Review & Refinement (Skills 2.0)
+Na het genereren van het project:
+1. **Review**: Gebruiker ziet alle gegenereerde skills met hun categorie (Capability Uplift / Workflow)
+2. **Eval Tests**: Per skill zijn er 3-5 test-prompts beschikbaar die de gebruiker kan kopiëren
+3. **Verfijning**: Gebruiker kan per skill feedback geven → AI genereert een verbeterde versie
+4. **Herhaling**: Na verfijning worden optioneel ook de evals opnieuw gegenereerd
+5. **Download**: Pas wanneer de gebruiker tevreden is, wordt het project gedownload
+
+```
+Flow: Genereer → Review skills → (optioneel) Verfijn → Download
+```
+
+
 ## State Management
 ```typescript
 interface WizardState {
@@ -61,6 +74,7 @@ interface Answer {
   question: string;
   answer: string;
   timestamp: Date;
+  skillCategory?: 'capability_uplift' | 'workflow'; // Skills 2.0
 }
 ```
 

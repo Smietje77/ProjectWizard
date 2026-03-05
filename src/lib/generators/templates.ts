@@ -3,6 +3,7 @@
 // Gebruikt door: zip-bundler.ts (direct), +server.ts (fallback)
 
 import type { WizardAnswers } from '$lib/types/gsd';
+import { getActiveSkills } from './specialist-detection';
 import {
 	COLOR_PALETTES,
 	EFFECT_ARCHETYPES,
@@ -554,12 +555,21 @@ Zie \`TEAM.md\` voor het volledige team en hun spawn-instructies.
 Volg de fasering in \`.planning/ROADMAP.md\`:
 ${answers.coreFeatures.filter(f => f.priority === 'must').map((f, i) => `${i + 1}. ${f.name}`).join('\n')}
 
+## Beschikbare Skills
+
+De volgende projectspecifieke skills zijn beschikbaar:
+
+${getActiveSkills(answers).map(s => `- \`${s.skillFile}\` — ${s.name}`).join('\n')}
+
+Gebruik deze skills als referentie bij het uitvoeren van taken. Elke skill bevat projectspecifieke richtlijnen, patronen en conventies voor dat domein.
+
 ## Regels
 
 - Eén specialist tegelijk per taak
 - Lees \`.planning/INITIAL_CONTEXT.md\` voor achtergrond bij elke nieuwe sessie
 - Bij twijfel: vraag de gebruiker
 - Gebruik \`.planning/REQUIREMENTS.md\` als referentie voor scope
+- Raadpleeg de relevante skill voordat je aan een domein-specifieke taak begint
 - Test elke feature voor je doorgaat naar de volgende
 `;
 }

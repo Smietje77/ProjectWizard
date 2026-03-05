@@ -21,6 +21,11 @@ Genereer een complete projectmap op basis van wizard antwoorden.
 │   ├── coordinator.md     # Hoofd coordinator
 │   └── specialists/       # Project-specifieke specialists
 ├── skills/                # Project-specifieke skills
+│   ├── backend.md         # Skill met YAML frontmatter (category + retirement)
+│   ├── backend.evals.md   # Test cases om skill te valideren (Skills 2.0)
+│   ├── testing.md
+│   ├── testing.evals.md
+│   └── ...
 └── templates/             # Opgeslagen templates (optioneel)
 ```
 

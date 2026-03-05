@@ -419,9 +419,15 @@ Volg de specifieke kleuren, typografie en componentstijl per pagina-type zo nauw
 				? 'DaisyUI'
 				: 'Tailwind CSS';
 
+	const today = new Date().toISOString().split('T')[0];
+
 	return `---
 name: design
 description: Projectspecifiek design systeem. Gebruik /design bij elke UI-taak voor consistente, unieke styling. Gebaseerd op de Anthropic frontend-design skill.
+category: workflow
+created: ${today}
+review_after_model_update: false
+# Workflow skill: design voorkeuren blijven relevant ongeacht modelversie
 ---
 
 # Design Skill
@@ -515,7 +521,7 @@ export function generateProjectFiles(input: GenerationInput): GeneratedFile[] {
 	const frameworkAnswer = (findAnswer(input.answers, 'frontend') || findAnswer(input.answers, 'framework') || '').toLowerCase();
 	const detectedFramework = frameworkAnswer.includes('next') ? 'nextjs'
 		: frameworkAnswer.includes('nuxt') ? 'nuxt'
-		: 'sveltekit';
+			: 'sveltekit';
 	files.push({ path: '.gitignore', content: generateGitignore(detectedFramework) });
 
 	return files;

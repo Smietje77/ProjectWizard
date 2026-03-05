@@ -13,6 +13,7 @@ import {
 	generateDesignSkillTemplate
 } from '$lib/generators/templates';
 import { getActiveSpecialists } from '$lib/generators/specialist-detection';
+import { generateSkills } from '$lib/generators/skill-generator';
 import type { WizardAnswer } from '$lib/types';
 import type { WizardAnswers } from '$lib/types/gsd';
 import { readFile } from 'fs/promises';
@@ -444,6 +445,11 @@ export const POST: RequestHandler = async ({ request }) => {
 						});
 					}
 
+					// Overige skills genereren (backend, testing, integration, deployment, security)
+					send('progress', { step: 'Project skills genereren...', pct: 88 });
+					const skillFiles = await generateSkills(specialists, answers, gsdAnswers);
+					files.push(...skillFiles);
+
 					send('progress', { step: 'Klaar!', pct: 100 });
 					send('done', {
 						success: true,
@@ -530,6 +536,10 @@ export const POST: RequestHandler = async ({ request }) => {
 				content: designSkill
 			});
 		}
+
+		// Overige skills genereren (backend, testing, integration, deployment, security)
+		const skillFiles = await generateSkills(specialists, answers, gsdAnswers);
+		files.push(...skillFiles);
 
 		return json({
 			success: true,

@@ -62,6 +62,7 @@ Bij elke vraag:
   "advies": "Voor jouw project adviseer ik SvelteKit omdat...",
   "advies_reden": "SvelteKit is snel, heeft weinig boilerplate, en werkt goed met Supabase.",
   "categorie": "frontend_keuze",
+  "skill_categorie": "capability_uplift",
   "is_compleet": false
 }
 ```
@@ -97,6 +98,41 @@ Bij elke vraag:
                                                                           ↓
                                                                   [Generate Output]
 ```
+
+### 7. Skill Categorisatie (Skills 2.0)
+Bij elke vraag, bepaal of het antwoord leidt tot een **capability_uplift** of **workflow** skill:
+
+- **capability_uplift** — Als het antwoord het model nieuwe kennis of technieken aanleert die het basismodel nog niet kent. Voorbeelden:
+  - Specifieke framework-versie patronen ("Svelte 5 runes syntax")
+  - Database-specifieke patterns ("Supabase RLS met multi-tenant schema")
+  - Niche API's of tools die het model niet goed kent
+  - ⚠️ Deze skills kunnen verouderen bij een nieuw model!
+
+- **workflow** — Als het antwoord een vast proces, bedrijfsvoorkeur of compliance-eis vastlegt. Voorbeelden:
+  - Deployment checklist ("Deploy altijd via Dokploy met deze stappen")
+  - Code review regels ("Altijd RLS policies reviewen bij database wijzigingen")
+  - NDA/compliance checklists
+  - Integratie configuraties ("Gebruik altijd Stripe test mode met deze webhook events")
+  - ✅ Deze skills blijven relevant ongeacht modelversie
+
+Stuur `skill_categorie` mee in elk antwoord. Bij twijfel: als het iets is dat een slimmer model vanzelf zou weten → `capability_uplift`. Als het een menselijke voorkeur of bedrijfsregel is → `workflow`.
+
+### 8. Skill Refinement Loop (Skills 2.0)
+Na het genereren kunnen gebruikers feedback geven op individuele skills. Als een skill verfijnd moet worden:
+
+1. **Ontvang feedback**: De gebruiker geeft aan wat er verbeterd moet worden (bv. "Voeg meer detail toe over Supabase RLS" of "De security skill mist OWASP richtlijnen")
+2. **Stuur verfijnings-prompt**: De verfijnings-API ontvangt:
+   - De volledige huidige skill content
+   - De feedback van de gebruiker
+   - De project context (GSD antwoorden)
+3. **Behoud kwaliteit**: De verfijnde skill:
+   - Behoudt de originele YAML frontmatter (category, retirement_note)
+   - Verbetert alleen de onderdelen waar feedback over is gegeven
+   - Behoudt alle goede elementen uit de originele versie
+4. **Regenereer evals**: Optioneel worden de eval test cases opnieuw gegenereerd voor de verfijnde skill
+5. **Iteratie**: De gebruiker kan meerdere keren verfijnen totdat de skill voldoet
+
+> **Doel**: Elke skill moet zo concreet en projectspecifiek mogelijk zijn. Een generieke skill is een slechte skill.
 
 ## Taal
 - Communiceer in het Nederlands

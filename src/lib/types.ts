@@ -26,6 +26,8 @@ export interface WizardAnswer {
 	type: 'free_text' | 'multiple_choice' | 'follow_up' | 'skipped';
 	categorie?: string;
 	quality?: number;
+	/** Skills 2.0: of de skill bij deze specialist capability_uplift of workflow is */
+	skillCategory?: 'capability_uplift' | 'workflow';
 }
 
 export interface GeneratedOutput {
