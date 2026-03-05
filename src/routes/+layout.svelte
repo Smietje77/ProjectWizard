@@ -4,8 +4,9 @@
 	import { i18n } from '$lib/i18n';
 	import type { Locale } from '$lib/i18n';
 	import ToolsSidebar from '$lib/components/ToolsSidebar.svelte';
+	import { enhance } from '$app/forms';
 
-	let { children } = $props();
+	let { children, data } = $props();
 
 	function toggleLocale() {
 		i18n.setLocale(i18n.locale === 'nl' ? 'en' : 'nl');
@@ -23,6 +24,13 @@
 	<button type="button" class="btn preset-outlined-surface-500 btn-sm" onclick={toggleLocale}>
 		{i18n.locale === 'nl' ? 'EN' : 'NL'}
 	</button>
+	{#if data.user}
+		<form method="POST" action="/logout" use:enhance>
+			<button type="submit" class="btn preset-outlined-surface-500 btn-sm">
+				{i18n.t.auth.logoutButton}
+			</button>
+		</form>
+	{/if}
 </div>
 
 <ToolsSidebar />

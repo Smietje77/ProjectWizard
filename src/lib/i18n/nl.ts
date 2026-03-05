@@ -144,7 +144,8 @@ export default {
 		quickStartPermissionHint: 'Tip: stel in de Claude Code extension settings permissions in op "auto-accept" voor een soepelere workflow.',
 		regenerateButton: 'Opnieuw genereren',
 		downloadButton: 'Download projectmap',
-		downloading: 'ZIP aanmaken...'
+		downloading: 'ZIP aanmaken...',
+		skillReviewHint: 'Bekijk en verfijn de gegenereerde skills voordat je downloadt.'
 	},
 	progress: {
 		project_doel: 'Projectdoel',
@@ -193,5 +194,29 @@ export default {
 		anthropic: 'Anthropic Console',
 		vscode: 'VS Code downloaden',
 		gsd: 'Get Shit Done (GSD)'
+	},
+	auth: {
+		loginTitle: 'Inloggen',
+		loginSubtitle: 'Log in om verder te gaan',
+		email: 'E-mailadres',
+		password: 'Wachtwoord',
+		loginButton: 'Inloggen',
+		loggingIn: 'Bezig met inloggen...',
+		logoutButton: 'Uitloggen',
+		invalidCredentials: 'Ongeldige inloggegevens'
+	},
+	skillReview: {
+		title: 'Skill Review & Verfijning',
+		description: 'Bekijk de gegenereerde skills en eval tests. Geef feedback om een skill te verfijnen voordat je het project downloadt.',
+		skillContent: 'Inhoud skill',
+		viewEvals: 'Bekijk eval tests',
+		refineTitle: 'Verfijn deze skill',
+		refineHint: 'Beschrijf wat er verbeterd moet worden. De AI past de skill aan op basis van je feedback.',
+		refinePlaceholder: 'Bijv. "Voeg meer detail toe over Supabase RLS policies" of "De testing skill mist info over E2E tests met Playwright"',
+		refineButton: 'Verfijn skill',
+		refining: 'Skill wordt verfijnd...',
+		regenerateEvalsLabel: 'Evals opnieuw genereren voor de verfijnde skill',
+		noSkills: 'Geen skills gegenereerd',
+		copyPrompt: 'Kopieer prompt'
 	}
 } as const;

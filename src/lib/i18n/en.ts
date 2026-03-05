@@ -144,7 +144,8 @@ export default {
 		quickStartPermissionHint: 'Tip: set permissions to "auto-accept" in the Claude Code extension settings for a smoother workflow.',
 		regenerateButton: 'Regenerate',
 		downloadButton: 'Download project folder',
-		downloading: 'Creating ZIP...'
+		downloading: 'Creating ZIP...',
+		skillReviewHint: 'Review and refine the generated skills before downloading.'
 	},
 	progress: {
 		project_doel: 'Project goal',
@@ -193,5 +194,29 @@ export default {
 		anthropic: 'Anthropic Console',
 		vscode: 'Download VS Code',
 		gsd: 'Get Shit Done (GSD)'
+	},
+	auth: {
+		loginTitle: 'Login',
+		loginSubtitle: 'Sign in to continue',
+		email: 'Email address',
+		password: 'Password',
+		loginButton: 'Sign in',
+		loggingIn: 'Signing in...',
+		logoutButton: 'Sign out',
+		invalidCredentials: 'Invalid credentials'
+	},
+	skillReview: {
+		title: 'Skill Review & Refinement',
+		description: 'Review the generated skills and eval tests. Provide feedback to refine a skill before downloading your project.',
+		skillContent: 'Skill content',
+		viewEvals: 'View eval tests',
+		refineTitle: 'Refine this skill',
+		refineHint: 'Describe what needs to be improved. The AI will adjust the skill based on your feedback.',
+		refinePlaceholder: 'E.g. "Add more detail about Supabase RLS policies" or "The testing skill is missing info about E2E tests with Playwright"',
+		refineButton: 'Refine skill',
+		refining: 'Refining skill...',
+		regenerateEvalsLabel: 'Regenerate evals for the refined skill',
+		noSkills: 'No skills generated',
+		copyPrompt: 'Copy prompt'
 	}
 } as const;
