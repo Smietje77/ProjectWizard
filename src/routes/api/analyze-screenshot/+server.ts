@@ -13,13 +13,19 @@ export const POST: RequestHandler = async ({ request }) => {
 
 	const { image } = validation.data;
 
-	// Extraheer base64 data en media type
-	const match = image.match(/^data:(image\/\w+);base64,(.+)$/);
+	// Extraheer base64 data en media type (alleen toegestane types)
+	const match = image.match(/^data:(image\/(?:jpeg|png|webp|gif));base64,(.+)$/);
 	if (!match) {
-		return json({ error: 'Ongeldig afbeeldingsformaat' }, { status: 400 });
+		return json({ error: 'Ongeldig afbeeldingsformaat. Toegestaan: JPEG, PNG, WebP, GIF.' }, { status: 400 });
 	}
 
 	const [, mediaType, base64Data] = match;
+
+	// Magic bytes validatie: controleer dat de base64 data overeenkomt met het MIME type
+	const magicBytesValid = validateMagicBytes(base64Data, mediaType);
+	if (!magicBytesValid) {
+		return json({ error: 'Bestandsinhoud komt niet overeen met opgegeven MIME type.' }, { status: 400 });
+	}
 
 	try {
 		const message = await createWithRetry({
@@ -174,4 +180,33 @@ function formatAnalysis(data: Record<string, unknown>): string {
 	}
 	if (d.sfeer) lines.push(`Sfeer: ${d.sfeer}`);
 	return lines.length > 0 ? lines.join('\n') : 'Analyse voltooid';
+}
+
+// Magic bytes per MIME type (hex prefixes van de raw bytes)
+const MAGIC_BYTES: Record<string, string[]> = {
+	'image/jpeg': ['ffd8ff'],
+	'image/png': ['89504e47'],
+	'image/gif': ['47494638'],
+	'image/webp': ['52494646'] // RIFF header; offset 8 = WEBP
+};
+
+function validateMagicBytes(base64Data: string, mimeType: string): boolean {
+	const expected = MAGIC_BYTES[mimeType];
+	if (!expected) return false;
+
+	// Decodeer eerste 12 bytes (genoeg voor alle checks)
+	const bytes = Buffer.from(base64Data.slice(0, 16), 'base64');
+	const hex = bytes.toString('hex').toLowerCase();
+
+	// Check primaire magic bytes
+	const primaryMatch = expected.some((magic) => hex.startsWith(magic));
+	if (!primaryMatch) return false;
+
+	// WebP extra check: bytes 8-11 moeten "WEBP" zijn (57454250)
+	if (mimeType === 'image/webp' && bytes.length >= 12) {
+		const webpSignature = bytes.slice(8, 12).toString('hex').toLowerCase();
+		if (webpSignature !== '57454250') return false;
+	}
+
+	return true;
 }

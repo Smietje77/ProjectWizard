@@ -104,3 +104,35 @@ export const updateProjectSchema = z
 		is_complete: z.boolean().optional()
 	})
 	.strict();
+
+// --- AI response schemas (runtime validatie van Claude API responses) ---
+
+// Critic agent response (matcht format uit prompts/critic.ts)
+export const criticResponseSchema = z.object({
+	problemen: z.array(
+		z.object({
+			type: z.enum(['tegenstrijdigheid', 'onrealistisch', 'ontbrekend', 'schaalbaarheid']),
+			beschrijving: z.string(),
+			suggestie: z.string()
+		})
+	)
+});
+
+// Coordinator response (matcht CoordinatorResponse interface uit stores/wizard.svelte.ts)
+export const coordinatorResponseSchema = z.object({
+	volgende_specialist: z.string().min(1),
+	vraag: z.string().min(1),
+	vraag_type: z.enum(['multiple_choice', 'vrije_tekst']),
+	opties: z.array(z.string()).optional(),
+	max_selecties: z.number().int().positive().optional(),
+	categorie: z.string().optional(),
+	advies: z.string(),
+	advies_reden: z.string(),
+	is_compleet: z.boolean(),
+	antwoord_kwaliteit: z.number().nullable().optional(),
+	kwaliteit_feedback: z.string().optional(),
+	categorie_diepte: z
+		.record(z.string(), z.enum(['onvoldoende', 'basis', 'voldoende']))
+		.optional(),
+	critic_feedback: z.string().optional()
+});

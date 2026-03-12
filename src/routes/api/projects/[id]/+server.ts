@@ -1,16 +1,17 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getSupabase } from '$lib/supabase';
 import { updateProjectSchema } from '$lib/validation/schemas';
 import { validateRequest } from '$lib/validation/validate';
 import { sanitizedError } from '$lib/server/errors';
+import { logAuditEvent } from '$lib/server/audit';
 
 // Enkel project ophalen (eigenaar-check via user_id)
 export const GET: RequestHandler = async ({ params, locals }) => {
-	let query = getSupabase()
+	let query = locals.supabase
 		.from('projects')
 		.select('*')
-		.eq('id', params.id);
+		.eq('id', params.id)
+		.is('deleted_at', null);
 
 	if (locals.user) {
 		query = query.eq('user_id', locals.user.id);
@@ -31,7 +32,7 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 	const validation = validateRequest(updateProjectSchema, body);
 	if (!validation.valid) return validation.error;
 
-	let query = getSupabase()
+	let query = locals.supabase
 		.from('projects')
 		.update(validation.data)
 		.eq('id', params.id);
@@ -46,12 +47,41 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 		return sanitizedError(error, 'Fout bij bijwerken van project');
 	}
 
+	// Audit logging voor wizard completion
+	if (validation.data.is_complete === true) {
+		logAuditEvent(locals.supabase, {
+			userId: locals.user?.id,
+			projectId: params.id,
+			action: 'complete',
+			metadata: {
+				answerCount: validation.data.answers?.length ?? null
+			}
+		});
+	}
+
+	// Audit logging voor antwoord bewerking (answers array meegestuurd zonder is_complete)
+	if (validation.data.answers && !validation.data.is_complete) {
+		logAuditEvent(locals.supabase, {
+			userId: locals.user?.id,
+			projectId: params.id,
+			action: 'edit_answer',
+			metadata: {
+				answerCount: validation.data.answers.length,
+				currentStep: validation.data.current_step ?? null
+			}
+		});
+	}
+
 	return json(data);
 };
 
-// Project verwijderen (eigenaar-check)
+// Project verwijderen (soft-delete met deleted_at timestamp)
 export const DELETE: RequestHandler = async ({ params, locals }) => {
-	let query = getSupabase().from('projects').delete().eq('id', params.id);
+	let query = locals.supabase
+		.from('projects')
+		.update({ deleted_at: new Date().toISOString() })
+		.eq('id', params.id)
+		.is('deleted_at', null);
 
 	if (locals.user) {
 		query = query.eq('user_id', locals.user.id);

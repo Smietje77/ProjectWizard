@@ -10,20 +10,21 @@ import {
 	generatePromptMdTemplate,
 	generateMcpJsonTemplate,
 	generateEnvExampleTemplate,
-	generateDesignSkillTemplate
+	generateDesignSkillTemplate,
+	generateCoordinatorAgentTemplate,
+	getSpecialistTemplate
 } from '$lib/generators/templates';
 import { getActiveSpecialists } from '$lib/generators/specialist-detection';
 import { generateSkills } from '$lib/generators/skill-generator';
 import type { WizardAnswer } from '$lib/types';
 import type { WizardAnswers } from '$lib/types/gsd';
-import { readFile } from 'fs/promises';
-import { join } from 'path';
 import { generateGSDFolder } from '$lib/generators/gsd-generator';
 import { generateProjectBundle, generatePlanningOnly } from '$lib/generators/zip-bundler';
 import { mapAnswersToGSD } from '$lib/generators/answer-mapper';
 import { generateRequestSchema } from '$lib/validation/schemas';
 import { validateRequest } from '$lib/validation/validate';
 import { sanitizedError } from '$lib/server/errors';
+import { logAuditEvent } from '$lib/server/audit';
 import { streamWithRetry } from '$lib/server/anthropic-client';
 import {
 	GENERATOR_SYSTEM_PROMPT,
@@ -33,6 +34,10 @@ import {
 	DESIGN_SKILL_GENERATOR_PROMPT
 } from '$lib/prompts/generator';
 import { generateTeamMd } from '$lib/generators/team-generator';
+import pLimit from 'p-limit';
+
+// Max 3 parallelle Anthropic API calls
+const aiLimit = pLimit(3);
 
 // Bouw gestructureerde context string uit GSD antwoorden
 function buildStructuredContext(gsdAnswers: WizardAnswers): string {
@@ -72,26 +77,28 @@ function buildStructuredContext(gsdAnswers: WizardAnswers): string {
 	return parts.join('\n');
 }
 
+// ─── AI-enriched generatie functies (met template fallback) ──────────────────
+
+type FileSource = 'ai' | 'template';
+interface EnrichedResult { content: string; source: FileSource }
+
 async function generateEnrichedClaudeMd(
 	projectName: string,
 	description: string,
-	answers: WizardAnswer[],
+	answersContext: string,
+	structuredContext: string,
 	gsdAnswers: WizardAnswers
-): Promise<string> {
-	const answersContext = answers
-		.map((a, i) => `${i + 1}. [${a.specialist}] ${a.question} → ${a.answer}`)
-		.join('\n');
-	const structuredContext = buildStructuredContext(gsdAnswers);
-
+): Promise<EnrichedResult> {
 	try {
-		const message = await streamWithRetry({
-			model: 'claude-sonnet-4-5-20250929',
-			max_tokens: 4096,
-			system: GENERATOR_SYSTEM_PROMPT,
-			messages: [
-				{
-					role: 'user',
-					content: `Genereer een compleet CLAUDE.md bestand voor dit project:
+		const message = await aiLimit(() =>
+			streamWithRetry({
+				model: 'claude-sonnet-4-5-20250929',
+				max_tokens: 4096,
+				system: GENERATOR_SYSTEM_PROMPT,
+				messages: [
+					{
+						role: 'user',
+						content: `Genereer een compleet CLAUDE.md bestand voor dit project:
 
 Projectnaam: ${projectName}
 Beschrijving: ${description}
@@ -102,40 +109,37 @@ Wizard antwoorden:
 ${answersContext}
 
 Genereer een gedetailleerd CLAUDE.md bestand.`
-				}
-			]
-		});
+					}
+				]
+			})
+		);
 
 		const content = message.content[0];
-		if (content.type === 'text') return content.text;
+		if (content.type === 'text') return { content: content.text, source: 'ai' };
 	} catch (error) {
 		console.error('Claude generatie fout:', error);
 	}
 
-	// FALLBACK: templates.ts (ZIP-kwaliteit)
-	return generateClaudeMdTemplate(gsdAnswers);
+	return { content: generateClaudeMdTemplate(gsdAnswers), source: 'template' };
 }
 
 async function generateEnrichedPromptMd(
 	projectName: string,
 	description: string,
-	answers: WizardAnswer[],
+	answersContext: string,
+	structuredContext: string,
 	gsdAnswers: WizardAnswers
-): Promise<string> {
-	const answersContext = answers
-		.map((a, i) => `${i + 1}. [${a.specialist}] ${a.question} → ${a.answer}`)
-		.join('\n');
-	const structuredContext = buildStructuredContext(gsdAnswers);
-
+): Promise<EnrichedResult> {
 	try {
-		const message = await streamWithRetry({
-			model: 'claude-sonnet-4-5-20250929',
-			max_tokens: 4096,
-			system: PROMPT_GENERATOR_SYSTEM,
-			messages: [
-				{
-					role: 'user',
-					content: `Genereer een compleet PROMPT.md bestand voor dit project:
+		const message = await aiLimit(() =>
+			streamWithRetry({
+				model: 'claude-sonnet-4-5-20250929',
+				max_tokens: 4096,
+				system: PROMPT_GENERATOR_SYSTEM,
+				messages: [
+					{
+						role: 'user',
+						content: `Genereer een compleet PROMPT.md bestand voor dit project:
 
 Projectnaam: ${projectName}
 Beschrijving: ${description}
@@ -144,157 +148,229 @@ ${structuredContext}
 
 Wizard antwoorden:
 ${answersContext}`
-				}
-			]
-		});
+					}
+				]
+			})
+		);
 
 		const content = message.content[0];
-		if (content.type === 'text') return content.text;
+		if (content.type === 'text') return { content: content.text, source: 'ai' };
 	} catch (error) {
 		console.error('Prompt generatie fout:', error);
 	}
 
-	// FALLBACK: templates.ts (ZIP-kwaliteit)
-	return generatePromptMdTemplate(gsdAnswers);
+	return { content: generatePromptMdTemplate(gsdAnswers), source: 'template' };
 }
 
 async function generateEnrichedMcpJson(
-	answers: WizardAnswer[],
+	answersContext: string,
+	structuredContext: string,
 	gsdAnswers: WizardAnswers
-): Promise<string> {
-	const answersContext = answers
-		.map((a, i) => `${i + 1}. [${a.specialist}] ${a.question} → ${a.answer}`)
-		.join('\n');
-	const structuredContext = buildStructuredContext(gsdAnswers);
-
+): Promise<EnrichedResult> {
 	try {
-		const message = await streamWithRetry({
-			model: 'claude-sonnet-4-5-20250929',
-			max_tokens: 2048,
-			system: MCP_GENERATOR_PROMPT,
-			messages: [
-				{
-					role: 'user',
-					content: `Genereer een .mcp.json voor dit project:
+		const message = await aiLimit(() =>
+			streamWithRetry({
+				model: 'claude-sonnet-4-5-20250929',
+				max_tokens: 2048,
+				system: MCP_GENERATOR_PROMPT,
+				messages: [
+					{
+						role: 'user',
+						content: `Genereer een .mcp.json voor dit project:
 
 ${structuredContext}
 
 Wizard antwoorden:
 ${answersContext}`
-				}
-			]
-		});
+					}
+				]
+			})
+		);
 
 		const content = message.content[0];
-		if (content.type === 'text') return content.text;
+		if (content.type === 'text') return { content: content.text, source: 'ai' };
 	} catch (error) {
 		console.error('MCP generatie fout:', error);
 	}
 
-	// FALLBACK: templates.ts (ZIP-kwaliteit)
-	return generateMcpJsonTemplate(gsdAnswers);
+	return { content: generateMcpJsonTemplate(gsdAnswers), source: 'template' };
 }
 
 async function generateEnrichedEnvExample(
-	answers: WizardAnswer[],
+	answersContext: string,
+	structuredContext: string,
 	gsdAnswers: WizardAnswers
-): Promise<string> {
-	const answersContext = answers
-		.map((a, i) => `${i + 1}. [${a.specialist}] ${a.question} → ${a.answer}`)
-		.join('\n');
-	const structuredContext = buildStructuredContext(gsdAnswers);
-
+): Promise<EnrichedResult> {
 	try {
-		const message = await streamWithRetry({
-			model: 'claude-sonnet-4-5-20250929',
-			max_tokens: 2048,
-			system: ENV_GENERATOR_PROMPT,
-			messages: [
-				{
-					role: 'user',
-					content: `Genereer een .env.example voor dit project:
+		const message = await aiLimit(() =>
+			streamWithRetry({
+				model: 'claude-sonnet-4-5-20250929',
+				max_tokens: 2048,
+				system: ENV_GENERATOR_PROMPT,
+				messages: [
+					{
+						role: 'user',
+						content: `Genereer een .env.example voor dit project:
 
 ${structuredContext}
 
 Wizard antwoorden:
 ${answersContext}`
-				}
-			]
-		});
+					}
+				]
+			})
+		);
 
 		const content = message.content[0];
-		if (content.type === 'text') return content.text;
+		if (content.type === 'text') return { content: content.text, source: 'ai' };
 	} catch (error) {
 		console.error('ENV generatie fout:', error);
 	}
 
-	// FALLBACK: templates.ts (ZIP-kwaliteit)
-	return generateEnvExampleTemplate(gsdAnswers);
+	return { content: generateEnvExampleTemplate(gsdAnswers), source: 'template' };
 }
 
 async function generateEnrichedDesignSkill(
+	answersContext: string,
+	structuredContext: string,
 	answers: WizardAnswer[],
 	gsdAnswers: WizardAnswers
-): Promise<string> {
-	const answersContext = answers
-		.map((a, i) => `${i + 1}. [${a.specialist}] ${a.question} → ${a.answer}`)
-		.join('\n');
-	const structuredContext = buildStructuredContext(gsdAnswers);
-
+): Promise<EnrichedResult> {
 	try {
-		const message = await streamWithRetry({
-			model: 'claude-sonnet-4-5-20250929',
-			max_tokens: 4096,
-			system: DESIGN_SKILL_GENERATOR_PROMPT,
-			messages: [
-				{
-					role: 'user',
-					content: `Genereer een design skill voor dit project:
+		const message = await aiLimit(() =>
+			streamWithRetry({
+				model: 'claude-sonnet-4-5-20250929',
+				max_tokens: 4096,
+				system: DESIGN_SKILL_GENERATOR_PROMPT,
+				messages: [
+					{
+						role: 'user',
+						content: `Genereer een design skill voor dit project:
 
 ${structuredContext}
 
 Wizard antwoorden:
 ${answersContext}`
-				}
-			]
-		});
+					}
+				]
+			})
+		);
 
 		const content = message.content[0];
-		if (content.type === 'text') return content.text;
+		if (content.type === 'text') return { content: content.text, source: 'ai' };
 	} catch (error) {
 		console.error('Design skill generatie fout:', error);
 	}
 
-	// FALLBACK: templates.ts als GSD data beschikbaar, anders generator.ts (bare minimum)
 	if (gsdAnswers.designStyle) {
-		return generateDesignSkillTemplate(gsdAnswers);
+		return { content: generateDesignSkillTemplate(gsdAnswers), source: 'template' };
 	}
-	return generateDesignSkill(answers);
+	return { content: generateDesignSkill(answers), source: 'template' };
 }
 
-// Lees originele agent bestanden uit ProjectWizard
-async function readAgentFile(relativePath: string): Promise<string | null> {
-	const basePath = process.env.PROJECT_ROOT || process.cwd();
-	const fullPath = join(basePath, relativePath);
-	try {
-		return await readFile(fullPath, 'utf-8');
-	} catch {
-		return null;
-	}
+// ─── Gedeelde file-generatie logica ──────────────────────────────────────────
+
+interface GenerateOptions {
+	projectName: string;
+	description: string;
+	answers: WizardAnswer[];
+	gsdAnswers: WizardAnswers;
+	onProgress?: (step: string, pct: number) => void;
 }
 
-// Helper: genereer GSD .planning/ bestanden als file array
-function generateGSDFiles(gsdAnswers: WizardAnswers): Array<{ path: string; content: string }> {
-	const gsd = generateGSDFolder(gsdAnswers);
+interface GeneratedFile { path: string; content: string; source: FileSource }
 
-	return [
-		{ path: '.planning/PROJECT.md', content: gsd.project },
-		{ path: '.planning/REQUIREMENTS.md', content: gsd.requirements },
-		{ path: '.planning/ROADMAP.md', content: gsd.roadmap },
-		{ path: '.planning/config.json', content: JSON.stringify(gsd.config, null, 2) },
-		{ path: '.planning/INITIAL_CONTEXT.md', content: gsd.context },
-		{ path: '.planning/STATE.md', content: gsd.state }
+async function generateAllFiles(opts: GenerateOptions): Promise<GeneratedFile[]> {
+	const { projectName, description, answers, gsdAnswers, onProgress } = opts;
+
+	const answersContext = answers
+		.map((a, i) => `${i + 1}. [${a.specialist}] ${a.question} → ${a.answer}`)
+		.join('\n');
+	const structuredContext = buildStructuredContext(gsdAnswers);
+
+	onProgress?.('AI bestanden genereren...', 10);
+
+	// Parallel AI generation met concurrency limiet (p-limit)
+	const [claudeMdResult, promptMdResult, mcpResult, envResult] = await Promise.allSettled([
+		generateEnrichedClaudeMd(projectName, description, answersContext, structuredContext, gsdAnswers),
+		generateEnrichedPromptMd(projectName, description, answersContext, structuredContext, gsdAnswers),
+		generateEnrichedMcpJson(answersContext, structuredContext, gsdAnswers),
+		generateEnrichedEnvExample(answersContext, structuredContext, gsdAnswers)
+	]);
+
+	const claudeMd = claudeMdResult.status === 'fulfilled'
+		? claudeMdResult.value
+		: { content: generateClaudeMdTemplate(gsdAnswers), source: 'template' as const };
+	const promptMd = promptMdResult.status === 'fulfilled'
+		? promptMdResult.value
+		: { content: generatePromptMdTemplate(gsdAnswers), source: 'template' as const };
+	const mcpJson = mcpResult.status === 'fulfilled'
+		? mcpResult.value
+		: { content: generateMcpJsonTemplate(gsdAnswers), source: 'template' as const };
+	const envExample = envResult.status === 'fulfilled'
+		? envResult.value
+		: { content: generateEnvExampleTemplate(gsdAnswers), source: 'template' as const };
+
+	onProgress?.('Config bestanden aanmaken...', 60);
+
+	const files: GeneratedFile[] = [
+		{ path: 'CLAUDE.md', ...claudeMd },
+		{ path: 'PROMPT.md', ...promptMd },
+		{ path: '.mcp.json', ...mcpJson },
+		{ path: '.env.example', ...envExample },
+		{ path: '.gitignore', content: generateGitignore(), source: 'template' }
 	];
+
+	// Agent bestanden via templates (geen filesystem reads)
+	const specialists = getActiveSpecialists(gsdAnswers);
+	files.push({
+		path: 'agents/coordinator.md',
+		content: generateCoordinatorAgentTemplate(gsdAnswers),
+		source: 'template'
+	});
+	for (const specialist of specialists) {
+		files.push({
+			path: specialist.agentFile,
+			content: getSpecialistTemplate(specialist.id, gsdAnswers),
+			source: 'template'
+		});
+	}
+
+	// GSD .planning/ folder
+	onProgress?.('GSD planning genereren...', 75);
+	const gsd = generateGSDFolder(gsdAnswers);
+	files.push(
+		{ path: '.planning/PROJECT.md', content: gsd.project, source: 'template' },
+		{ path: '.planning/REQUIREMENTS.md', content: gsd.requirements, source: 'template' },
+		{ path: '.planning/ROADMAP.md', content: gsd.roadmap, source: 'template' },
+		{ path: '.planning/config.json', content: JSON.stringify(gsd.config, null, 2), source: 'template' },
+		{ path: '.planning/INITIAL_CONTEXT.md', content: gsd.context, source: 'template' },
+		{ path: '.planning/STATE.md', content: gsd.state, source: 'template' }
+	);
+
+	// Team configuratie
+	files.push({ path: 'TEAM.md', content: generateTeamMd(gsdAnswers), source: 'template' });
+
+	// Design skill (als er design antwoorden zijn)
+	const hasDesignAnswers = answers.some(
+		(a: WizardAnswer) => a.specialist === 'design' && a.type !== 'skipped'
+	);
+	if (hasDesignAnswers) {
+		onProgress?.('Design skill genereren...', 82);
+		const designSkill = await generateEnrichedDesignSkill(
+			answersContext, structuredContext, answers, gsdAnswers
+		);
+		files.push({ path: '.claude/skills/design.md', ...designSkill });
+	}
+
+	// Overige skills
+	onProgress?.('Project skills genereren...', 88);
+	const skillFiles = await generateSkills(specialists, answers, gsdAnswers);
+	files.push(...skillFiles.map(f => ({ ...f, source: 'ai' as FileSource })));
+
+	onProgress?.('Klaar!', 100);
+
+	return files;
 }
 
 // Helper: maak URL-veilige naam
@@ -305,8 +381,9 @@ function slugify(text: string): string {
 		.replace(/^-+|-+$/g, '');
 }
 
-// SSE streaming endpoint
-export const POST: RequestHandler = async ({ request }) => {
+// ─── Endpoint ────────────────────────────────────────────────────────────────
+
+export const POST: RequestHandler = async ({ request, locals }) => {
 	const body = await request.json();
 	const validation = validateRequest(generateRequestSchema, body);
 	if (!validation.valid) return validation.error;
@@ -367,7 +444,6 @@ export const POST: RequestHandler = async ({ request }) => {
 		}
 	}
 
-	// Maak WizardAnswers eenmalig aan VOOR Promise.allSettled — hergebruik overal
 	const gsdAnswers = mapAnswersToGSD(answers, description, projectName);
 
 	// Streaming: SSE voor real-time voortgang
@@ -380,77 +456,29 @@ export const POST: RequestHandler = async ({ request }) => {
 				}
 
 				try {
-					send('progress', { step: 'AI bestanden genereren...', pct: 10 });
+					const files = await generateAllFiles({
+						projectName,
+						description,
+						answers,
+						gsdAnswers,
+						onProgress: (step, pct) => send('progress', { step, pct })
+					});
 
-					// Parallel AI generation voor snelheid
-					const [claudeMdResult, promptMdResult, mcpResult, envResult] = await Promise.allSettled([
-						generateEnrichedClaudeMd(projectName, description, answers, gsdAnswers),
-						generateEnrichedPromptMd(projectName, description, answers, gsdAnswers),
-						generateEnrichedMcpJson(answers, gsdAnswers),
-						generateEnrichedEnvExample(answers, gsdAnswers)
-					]);
-
-					// Enrichment functies bevatten nu interne fallback naar templates.ts
-					const claudeMd =
-						claudeMdResult.status === 'fulfilled'
-							? claudeMdResult.value
-							: generateClaudeMdTemplate(gsdAnswers);
-					const promptMd =
-						promptMdResult.status === 'fulfilled'
-							? promptMdResult.value
-							: generatePromptMdTemplate(gsdAnswers);
-					const mcpJson =
-						mcpResult.status === 'fulfilled' ? mcpResult.value : generateMcpJsonTemplate(gsdAnswers);
-					const envExample =
-						envResult.status === 'fulfilled' ? envResult.value : generateEnvExampleTemplate(gsdAnswers);
-
-					send('progress', { step: 'Config bestanden aanmaken...', pct: 60 });
-
-					const files: Array<{ path: string; content: string }> = [
-						{ path: 'CLAUDE.md', content: claudeMd },
-						{ path: 'PROMPT.md', content: promptMd },
-						{ path: '.mcp.json', content: mcpJson },
-						{ path: '.env.example', content: envExample },
-						{ path: '.gitignore', content: generateGitignore() }
-					];
-
-					// Kopieer agent bestanden — gebruik gedeelde specialist-detectie
-					const specialists = getActiveSpecialists(gsdAnswers);
-					files.push({ path: 'agents/coordinator.md', content: await readAgentFile('agents/coordinator.md') || '' });
-					for (const specialist of specialists) {
-						const content = await readAgentFile(specialist.agentFile);
-						if (content) {
-							files.push({ path: specialist.agentFile, content });
+					// Audit logging (fire-and-forget)
+					const aiFiles = files.filter(f => f.source === 'ai').map(f => f.path);
+					const templateFiles = files.filter(f => f.source === 'template').map(f => f.path);
+					logAuditEvent(locals.supabase, {
+						userId: locals.user?.id,
+						action: 'generate',
+						metadata: {
+							projectName,
+							answerCount: answers.length,
+							fileCount: files.length,
+							aiFiles,
+							templateFiles
 						}
-					}
+					});
 
-					// GSD .planning/ folder genereren
-					send('progress', { step: 'GSD planning genereren...', pct: 75 });
-					const gsdFiles = generateGSDFiles(gsdAnswers);
-					files.push(...gsdFiles);
-
-					// Agent Team configuratie genereren
-					files.push({ path: 'TEAM.md', content: generateTeamMd(gsdAnswers) });
-
-					// Design skill genereren (als er design antwoorden zijn)
-					const hasDesignAnswers = answers.some(
-						(a: WizardAnswer) => a.specialist === 'design' && a.type !== 'skipped'
-					);
-					if (hasDesignAnswers) {
-						send('progress', { step: 'Design skill genereren...', pct: 82 });
-						const designSkill = await generateEnrichedDesignSkill(answers, gsdAnswers);
-						files.push({
-							path: '.claude/skills/design.md',
-							content: designSkill
-						});
-					}
-
-					// Overige skills genereren (backend, testing, integration, deployment, security)
-					send('progress', { step: 'Project skills genereren...', pct: 88 });
-					const skillFiles = await generateSkills(specialists, answers, gsdAnswers);
-					files.push(...skillFiles);
-
-					send('progress', { step: 'Klaar!', pct: 100 });
 					send('done', {
 						success: true,
 						files: files.map((f) => ({ path: f.path, content: f.content })),
@@ -478,68 +506,27 @@ export const POST: RequestHandler = async ({ request }) => {
 
 	// Non-streaming fallback
 	try {
-		// Parallel AI generation voor snelheid
-		const [claudeMdResult, promptMdResult, mcpResult, envResult] = await Promise.allSettled([
-			generateEnrichedClaudeMd(projectName, description, answers, gsdAnswers),
-			generateEnrichedPromptMd(projectName, description, answers, gsdAnswers),
-			generateEnrichedMcpJson(answers, gsdAnswers),
-			generateEnrichedEnvExample(answers, gsdAnswers)
-		]);
+		const files = await generateAllFiles({
+			projectName,
+			description,
+			answers,
+			gsdAnswers
+		});
 
-		// Enrichment functies bevatten nu interne fallback naar templates.ts
-		const claudeMd =
-			claudeMdResult.status === 'fulfilled'
-				? claudeMdResult.value
-				: generateClaudeMdTemplate(gsdAnswers);
-		const promptMd =
-			promptMdResult.status === 'fulfilled'
-				? promptMdResult.value
-				: generatePromptMdTemplate(gsdAnswers);
-		const mcpJson =
-			mcpResult.status === 'fulfilled' ? mcpResult.value : generateMcpJsonTemplate(gsdAnswers);
-		const envExample =
-			envResult.status === 'fulfilled' ? envResult.value : generateEnvExampleTemplate(gsdAnswers);
-
-		const files: Array<{ path: string; content: string }> = [
-			{ path: 'CLAUDE.md', content: claudeMd },
-			{ path: 'PROMPT.md', content: promptMd },
-			{ path: '.mcp.json', content: mcpJson },
-			{ path: '.env.example', content: envExample },
-			{ path: '.gitignore', content: generateGitignore() }
-		];
-
-		// Agent bestanden — gebruik gedeelde specialist-detectie
-		const specialists = getActiveSpecialists(gsdAnswers);
-		files.push({ path: 'agents/coordinator.md', content: await readAgentFile('agents/coordinator.md') || '' });
-		for (const specialist of specialists) {
-			const content = await readAgentFile(specialist.agentFile);
-			if (content) {
-				files.push({ path: specialist.agentFile, content });
+		// Audit logging (fire-and-forget)
+		const aiFiles = files.filter(f => f.source === 'ai').map(f => f.path);
+		const templateFiles = files.filter(f => f.source === 'template').map(f => f.path);
+		logAuditEvent(locals.supabase, {
+			userId: locals.user?.id,
+			action: 'generate',
+			metadata: {
+				projectName,
+				answerCount: answers.length,
+				fileCount: files.length,
+				aiFiles,
+				templateFiles
 			}
-		}
-
-		// GSD .planning/ folder genereren
-		const gsdFiles = generateGSDFiles(gsdAnswers);
-		files.push(...gsdFiles);
-
-		// Agent Team configuratie genereren
-		files.push({ path: 'TEAM.md', content: generateTeamMd(gsdAnswers) });
-
-		// Design skill genereren (als er design antwoorden zijn)
-		const hasDesignAnswers = answers.some(
-			(a: WizardAnswer) => a.specialist === 'design' && a.type !== 'skipped'
-		);
-		if (hasDesignAnswers) {
-			const designSkill = await generateEnrichedDesignSkill(answers, gsdAnswers);
-			files.push({
-				path: '.claude/skills/design.md',
-				content: designSkill
-			});
-		}
-
-		// Overige skills genereren (backend, testing, integration, deployment, security)
-		const skillFiles = await generateSkills(specialists, answers, gsdAnswers);
-		files.push(...skillFiles);
+		});
 
 		return json({
 			success: true,

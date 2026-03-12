@@ -106,3 +106,23 @@ Output map bevat:
 
 ## Omgevingsvariabelen
 Zie `.env.example` voor alle benodigde variabelen.
+
+
+## Openstaande Verbeteringen
+
+**BELANGRIJK:** Lees `.fixes/DEEP-ANALYSIS.md` voor de volledige diepte-analyse en het gefaseerde verbeterplan (30 taken, 5 fases).
+
+### Huidige Prioriteit: Fase 1 — Kritieke Fixes
+1. Zod runtime validatie voor CoordinatorResponse (chat endpoint)
+2. Supabase client fix: SSR client ipv service role in API routes
+3. Unit tests voor `answer-mapper.ts` (895 regels ongeteste code)
+4. Fix `rebuildCategories()` diepte-verlies
+5. Fix `is_complete` dual-source inconsistentie
+6. Fix SSE stream buffer incomplete line handling
+7. setTimeout cleanup in Svelte componenten
+
+Werk per taak en test na elke wijziging.
+
+
+## Methodologie & Generatie Referentie
+Zie `PROJECT-HARNESS.md` voor het meesterdocument met alle generatie-patronen, anti-patronen, validatie-gates en framework-specifieke richtlijnen. Dit document is de referentie voor de coordinator, generator en answer-mapper.

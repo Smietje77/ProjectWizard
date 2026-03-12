@@ -3,6 +3,7 @@
 	import { onMount } from 'svelte';
 	import { wizardStore } from '$lib/stores/wizard.svelte';
 	import { i18n } from '$lib/i18n';
+	import { REQUIRED_CATEGORIES } from '$lib/constants';
 
 	let description = $state('');
 	let isSubmitting = $state(false);
@@ -149,18 +150,6 @@
 		created_at: string;
 		updated_at: string;
 	}
-
-	const REQUIRED_CATEGORIES = [
-		'website_type',
-		'project_doel',
-		'doelgroep',
-		'kernfunctionaliteiten',
-		'frontend_keuze',
-		'database_keuze',
-		'auth_keuze',
-		'deployment_keuze',
-		'design_stijl'
-	];
 
 	function getProjectStatus(project: SavedProject) {
 		const answers = project.answers ?? [];

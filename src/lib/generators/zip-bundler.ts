@@ -18,8 +18,72 @@ import {
 } from './templates';
 
 interface BundleOptions {
-  includeExistingOutput?: boolean;  // Include CLAUDE.md, PROMPT.md, etc.
+  includeExistingOutput?: boolean;
   projectName: string;
+}
+
+/**
+ * Genereert een manifest.json die het gegenereerde project beschrijft.
+ * Maakt de output zelfbeschrijvend en agent-discoverable.
+ */
+function generateManifest(answers: WizardAnswers, projectName: string): string {
+  const specialists = getActiveSpecialists(answers);
+  const skills = getActiveSkills(answers);
+
+  const manifest = {
+    generator: 'ProjectWizard',
+    version: '1.0',
+    generatedAt: new Date().toISOString(),
+    project: {
+      name: projectName,
+      type: answers.websiteType ?? 'unknown',
+      description: answers.projectGoal
+    },
+    techStack: {
+      framework: answers.frontendFramework,
+      database: answers.database,
+      auth: answers.authMethod,
+      uiLibrary: answers.uiLibrary,
+      styling: answers.stylingApproach,
+      apiPattern: answers.apiPattern,
+      deployment: answers.deploymentTarget
+    },
+    agents: {
+      coordinator: 'agents/coordinator.md',
+      specialists: specialists.map(s => ({
+        id: s.id,
+        name: s.name,
+        agentFile: s.agentFile,
+        skillFile: s.skillFile
+      }))
+    },
+    skills: skills.map(s => ({
+      id: s.id,
+      file: s.skillFile
+    })),
+    planning: {
+      entryPoint: 'PROMPT.md',
+      context: 'CLAUDE.md',
+      team: 'TEAM.md',
+      roadmap: '.planning/ROADMAP.md',
+      requirements: '.planning/REQUIREMENTS.md',
+      initialContext: '.planning/INITIAL_CONTEXT.md'
+    },
+    workflow: {
+      step1: 'Lees CLAUDE.md voor projectcontext',
+      step2: 'Lees PROMPT.md voor bouwinstructies',
+      step3: 'Gebruik .planning/ROADMAP.md voor fasering',
+      step4: 'Raadpleeg TEAM.md voor agent team configuratie'
+    },
+    features: {
+      count: answers.coreFeatures.length,
+      mustHave: answers.coreFeatures.filter(f => f.priority === 'must').length,
+      shouldHave: answers.coreFeatures.filter(f => f.priority === 'should').length,
+      niceToHave: answers.coreFeatures.filter(f => f.priority === 'nice').length
+    }
+  };
+
+  return JSON.stringify(manifest, null, 2);
 }
 
 /**
@@ -58,6 +122,9 @@ export async function generateProjectBundle(
     projectFolder.file('.env.example', generateEnvExampleTemplate(answers));
     projectFolder.file('.mcp.json', generateMcpJsonTemplate(answers));
 
+    // manifest.json — zelfbeschrijvend projectoverzicht
+    projectFolder.file('manifest.json', generateManifest(answers, options.projectName));
+
     // TEAM.md — Agent Team configuratie
     projectFolder.file('TEAM.md', generateTeamMd(answers));
 
@@ -83,7 +150,6 @@ export async function generateProjectBundle(
       if (skillsFolder) {
         for (const skill of skills) {
           if (skill.skillFile) {
-            // Haal filename uit skillFile path (bijv. '.claude/skills/design.md' -> 'design.md')
             const fileName = skill.skillFile.split('/').pop() || `${skill.id}.md`;
             const content = getSkillTemplate(skill.id, answers);
             skillsFolder.file(fileName, content);
@@ -120,3 +186,6 @@ export async function generatePlanningOnly(answers: WizardAnswers): Promise<Blob
 
   return await zip.generateAsync({ type: 'blob' });
 }
+
+// Export voor gebruik in generate/+server.ts (streaming flow)
+export { generateManifest };

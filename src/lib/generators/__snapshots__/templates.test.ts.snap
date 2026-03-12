@@ -1,0 +1,217 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`generateClaudeMdTemplate > output snapshot 1`] = `
+"# Sieraden Webshop
+
+## Projectbeschrijving
+
+Een webshop voor handgemaakte sieraden
+
+**Probleemstelling:** Klanten willen online bestellen
+
+**Doelgroep:** Consumenten
+
+## Tech Stack
+
+| Categorie | Keuze |
+|-----------|-------|
+| Framework | SvelteKit |
+| Database | Supabase (PostgreSQL) |
+| Authenticatie | Email + Password |
+| UI Library | Skeleton UI |
+| Styling | tailwind |
+| API Pattern | REST |
+| Navigatie | topbar |
+| Deployment | dokploy |
+| Tests | standard |
+
+## Kernfunctionaliteiten
+
+- **Productcatalogus** (must): Producten tonen
+- **Winkelwagen** (must): Items toevoegen
+
+## Data Model
+
+- **Products**: id, name, price
+
+## Externe Services & Integraties
+
+Geen externe services.
+
+## Out of Scope
+
+- B2B verkoop
+
+## Deployment
+
+- **Target:** dokploy
+- Geen custom domein geconfigureerd
+
+## MCP Servers
+
+- supabase
+
+## Projectstructuur
+
+Zie \`.planning/\` folder voor projectcontext (INITIAL_CONTEXT.md, REQUIREMENTS.md, ROADMAP.md).
+Zie \`TEAM.md\` voor agent team configuratie.
+Zie \`agents/\` folder voor individuele agent instructies.
+
+> **Note:** De \`.planning/\` bestanden zijn gegenereerd door ProjectWizard — geen GSD workflow.
+> GSD-commando's zijn niet nodig. Gebruik de bestanden direct als context.
+"
+`;
+
+exports[`generateCoordinatorAgentTemplate > output snapshot 1`] = `
+"# Coordinator Agent — Sieraden Webshop
+
+## Rol
+
+Je bent de project coordinator voor **Sieraden Webshop**. Je orkestreert het team van specialisten en bewaakt de voortgang.
+
+## Project Context
+
+- **Framework:** SvelteKit
+- **Database:** Supabase (PostgreSQL)
+- **Auth:** Email + Password
+- **Deployment:** dokploy
+
+## Team Overzicht
+
+Zie \`TEAM.md\` voor het volledige team en hun spawn-instructies.
+
+## Werkwijze
+
+1. **Analyseer** de huidige taak en bepaal welke specialist(en) nodig zijn
+2. **Delegeer** via de spawn-instructies in TEAM.md
+3. **Review** het resultaat van elke specialist
+4. **Integreer** de resultaten in het geheel
+5. **Documenteer** voltooide taken in de voortgang
+
+## Planning
+
+Volg de fasering in \`.planning/ROADMAP.md\`:
+1. Productcatalogus
+2. Winkelwagen
+
+## Beschikbare Skills
+
+De volgende projectspecifieke skills zijn beschikbaar:
+
+- \`.claude/skills/design.md\` — Frontend Developer
+- \`.claude/skills/backend.md\` — Backend Developer
+- \`.claude/skills/testing.md\` — Test Engineer
+- \`.claude/skills/deployment.md\` — DevOps Engineer
+
+Gebruik deze skills als referentie bij het uitvoeren van taken. Elke skill bevat projectspecifieke richtlijnen, patronen en conventies voor dat domein.
+
+## Regels
+
+- Eén specialist tegelijk per taak
+- Lees \`.planning/INITIAL_CONTEXT.md\` voor achtergrond bij elke nieuwe sessie
+- Bij twijfel: vraag de gebruiker
+- Gebruik \`.planning/REQUIREMENTS.md\` als referentie voor scope
+- Raadpleeg de relevante skill voordat je aan een domein-specifieke taak begint
+- Test elke feature voor je doorgaat naar de volgende
+"
+`;
+
+exports[`generateEnvExampleTemplate > output snapshot 1`] = `
+"# Sieraden Webshop — Environment Variables
+# Kopieer naar .env en vul de waarden in
+
+# Supabase
+PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+
+# Dokploy
+DOKPLOY_URL=https://your-dokploy-instance.com
+
+# Applicatie
+PUBLIC_APP_URL=http://localhost:5173
+NODE_ENV=development"
+`;
+
+exports[`generateMcpJsonTemplate > output snapshot 1`] = `
+"{
+  "mcpServers": {
+    "supabase": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@supabase/mcp-server"
+      ],
+      "env": {
+        "SUPABASE_URL": "\${SUPABASE_URL}",
+        "SUPABASE_SERVICE_ROLE_KEY": "\${SUPABASE_SERVICE_ROLE_KEY}"
+      }
+    }
+  }
+}"
+`;
+
+exports[`generatePromptMdTemplate > output snapshot 1`] = `
+"# Build Instructies: Sieraden Webshop
+
+## Fase 1: Project Setup
+
+1. Initialiseer SvelteKit project
+2. Configureer tailwind met Skeleton UI
+3. Setup Supabase (PostgreSQL) connectie
+4. Implementeer Email + Password authenticatie
+
+## Fase 2: Data Model
+
+Maak de volgende entiteiten aan:
+
+### Products
+- Velden: id, name, price
+
+
+
+### Supabase Setup
+- Maak tabellen via Supabase Dashboard of migraties
+- Configureer Row Level Security (RLS) voor alle tabellen
+- Setup realtime subscriptions waar nodig
+
+
+## Fase 3: Must-Have Features
+
+1. **Productcatalogus**: Producten tonen
+2. **Winkelwagen**: Items toevoegen
+
+## Fase 4: Should-Have Features
+
+
+
+## Fase 5: Integraties
+
+Geen externe services.
+
+## Fase 6: Testing & Deployment
+
+- Test strategie: standard
+- Kritieke flows: Bestelling plaatsen
+- Deploy naar dokploy
+
+
+## Conventies
+
+- Gebruik REST voor API communicatie
+- Navigatie: topbar layout
+- TypeScript strict mode
+- Elke component in eigen bestand
+
+## Planning Context
+
+De \`.planning/\` map bevat de volledige projectcontext die door ProjectWizard is gegenereerd:
+- \`INITIAL_CONTEXT.md\` — volledig projectoverzicht en achtergrond
+- \`REQUIREMENTS.md\` — alle functionele en technische eisen
+- \`ROADMAP.md\` — fases en deliverables
+
+**Gebruik deze bestanden als context — GSD-commando's zijn NIET nodig.**
+Als Claude Code een GSD-waarschuwing toont ("Project already initialized"), negeer deze dan.
+Begin gewoon met de implementatie op basis van bovenstaande instructies.
+"
+`;

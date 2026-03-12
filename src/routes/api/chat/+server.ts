@@ -1,23 +1,64 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import Anthropic from '@anthropic-ai/sdk';
-import { chatRequestSchema } from '$lib/validation/schemas';
+import {
+	chatRequestSchema,
+	coordinatorResponseSchema,
+	criticResponseSchema
+} from '$lib/validation/schemas';
 import { validateRequest } from '$lib/validation/validate';
 import { sanitizedError } from '$lib/server/errors';
 import { createWithThinking, createWithRetry, extractTextContent } from '$lib/server/anthropic-client';
 import { COORDINATOR_SYSTEM_PROMPT } from '$lib/prompts/coordinator';
 import { CRITIC_SYSTEM_PROMPT } from '$lib/prompts/critic';
+import { REQUIRED_CATEGORIES } from '$lib/constants';
+import {
+	estimateConversationTokens,
+	TOKEN_WARNING_THRESHOLD,
+	TOKEN_ERROR_THRESHOLD
+} from '$lib/server/token-counter';
+import { sanitizePromptInput, MAX_LENGTHS } from '$lib/server/sanitize';
+import { createLogger } from '$lib/server/logger';
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, locals }) => {
+	const log = createLogger(locals.requestId);
+	const startTime = Date.now();
+
 	const body = await request.json();
 	const validation = validateRequest(chatRequestSchema, body);
 	if (!validation.valid) return validation.error;
 
-	const { projectDescription, answers, currentStep, completedCategories, userAnswer, documentContext } =
+	const { answers, currentStep, completedCategories, documentContext: rawDocContext } =
 		validation.data;
+
+	// Input sanitization: bescherm tegen prompt injection
+	const descSanitized = sanitizePromptInput(validation.data.projectDescription, MAX_LENGTHS.projectDescription);
+	const answerSanitized = sanitizePromptInput(validation.data.userAnswer ?? '', MAX_LENGTHS.answer);
+	const docSanitized = sanitizePromptInput(rawDocContext ?? '', MAX_LENGTHS.documentContext);
+
+	if (descSanitized.wasModified || answerSanitized.wasModified || docSanitized.wasModified) {
+		log.warn('Input sanitization actief — mogelijke injection poging', {
+			descModified: descSanitized.wasModified,
+			answerModified: answerSanitized.wasModified,
+			docModified: docSanitized.wasModified
+		});
+	}
+
+	const projectDescription = descSanitized.text;
+	const userAnswer = answerSanitized.text || undefined;
+	const documentContext = docSanitized.text || undefined;
+
+	// Document truncatie warning
+	let warning: string | undefined;
+	if (rawDocContext && rawDocContext.length > 40000) {
+		warning = `Je document is ingekort van ${rawDocContext.length.toLocaleString('nl-NL')} naar 40.000 tekens. Sommige details kunnen ontbreken.`;
+		log.info('Document truncatie', { originalLength: rawDocContext.length });
+	}
 
 	// Critic agent: elke 3 antwoorden een review doen
 	let criticContext = '';
+	let criticStatus: 'success' | 'skipped' | 'not_applicable' = 'not_applicable';
+
 	if (answers && answers.length > 0 && answers.length % 3 === 0) {
 		try {
 			const criticMessage = await createWithRetry(
@@ -39,15 +80,18 @@ export const POST: RequestHandler = async ({ request }) => {
 				(b: { type: string }) => b.type === 'text'
 			);
 			if (criticText && 'text' in criticText) {
-				const criticJson = JSON.parse(
-					(criticText as { text: string }).text.match(/\{[\s\S]*\}/)?.[0] ?? '{}'
-				);
-				if (criticJson.problemen?.length > 0) {
-					criticContext = `\n\nKRITIEK VAN REVIEWER:\n${criticJson.problemen.map((p: { type: string; beschrijving: string; suggestie: string }) => `- [${p.type}] ${p.beschrijving} Suggestie: ${p.suggestie}`).join('\n')}\n\nVerwerk deze kritiek in je volgende vraag als dat relevant is. Voeg een "critic_feedback" veld toe aan je JSON met een korte, vriendelijke opmerking voor de gebruiker.`;
+				const rawMatch = (criticText as { text: string }).text.match(/\{[\s\S]*\}/);
+				if (!rawMatch) throw new Error('Geen JSON in critic response');
+				const criticJson = criticResponseSchema.parse(JSON.parse(rawMatch[0]));
+				criticStatus = 'success';
+				if (criticJson.problemen.length > 0) {
+					criticContext = `\n\nKRITIEK VAN REVIEWER:\n${criticJson.problemen.map((p) => `- [${p.type}] ${p.beschrijving} Suggestie: ${p.suggestie}`).join('\n')}\n\nVerwerk deze kritiek in je volgende vraag als dat relevant is. Voeg een "critic_feedback" veld toe aan je JSON met een korte, vriendelijke opmerking voor de gebruiker.`;
 				}
+				log.info('Critic review voltooid', { problemen: criticJson.problemen.length });
 			}
 		} catch (e) {
-			console.warn('Critic call mislukt, doorgaan zonder:', e);
+			criticStatus = 'skipped';
+			log.warn('Critic call mislukt, doorgaan zonder', { error: e instanceof Error ? e.message : String(e) });
 		}
 	}
 
@@ -90,17 +134,57 @@ Bepaal de volgende vraag.`
 		}
 	];
 
-	try {
-		const message = await createWithThinking(
+	// Token counting: circuit breaker vóór API call
+	const estimatedTokens = estimateConversationTokens(
+		COORDINATOR_SYSTEM_PROMPT,
+		answersContext,
+		projectDescription,
+		documentContext
+	);
+
+	if (estimatedTokens > TOKEN_ERROR_THRESHOLD) {
+		log.warn('Token limiet overschreden', { estimatedTokens });
+		return json(
 			{
-				model: 'claude-sonnet-4-5-20250929',
-				max_tokens: 8192,
-				system: COORDINATOR_SYSTEM_PROMPT,
-				messages
+				error: 'Conversatie te lang. Probeer antwoorden korter te houden of begin een nieuwe sessie.',
+				tokenUsage: estimatedTokens
 			},
-			4096,
-			{ timeoutMs: 60000 }
+			{ status: 413 }
 		);
+	}
+
+	if (estimatedTokens > TOKEN_WARNING_THRESHOLD) {
+		log.warn('Token warning', { estimatedTokens, threshold: TOKEN_ERROR_THRESHOLD });
+	}
+
+	try {
+		// Dynamisch bepalen of extended thinking nodig is
+		const needsThinking =
+			currentStep === 0 || // eerste vraag: volledige analyse nodig
+			(answers && answers.length % 5 === 0) || // elke 5e vraag (categorie-transitie)
+			(userAnswer && userAnswer.startsWith('[VRAAG]')) || // follow-up vraag van gebruiker
+			(completedCategories && completedCategories.length >= REQUIRED_CATEGORIES.length - 2); // bijna klaar
+
+		const message = needsThinking
+			? await createWithThinking(
+					{
+						model: 'claude-sonnet-4-5-20250929',
+						max_tokens: 8192,
+						system: COORDINATOR_SYSTEM_PROMPT,
+						messages
+					},
+					4096,
+					{ timeoutMs: 60000 }
+				)
+			: await createWithRetry(
+					{
+						model: 'claude-sonnet-4-5-20250929',
+						max_tokens: 4096,
+						system: COORDINATOR_SYSTEM_PROMPT,
+						messages
+					},
+					{ timeoutMs: 30000 }
+				);
 
 		const text = extractTextContent(message);
 		if (!text) {
@@ -112,9 +196,44 @@ Bepaal de volgende vraag.`
 			throw new Error('Geen JSON gevonden in response');
 		}
 
-		const data = JSON.parse(jsonMatch[0]);
-		return json(data);
+		const parsed = JSON.parse(jsonMatch[0]);
+		const result = coordinatorResponseSchema.safeParse(parsed);
+		if (!result.success) {
+			log.error('Coordinator response validatie mislukt', undefined, {
+				issues: result.error.issues
+			});
+			return json(
+				{
+					error: 'Ongeldige coordinator response',
+					details: result.error.issues.map((i) => ({
+						path: i.path.join('.'),
+						message: i.message
+					}))
+				},
+				{ status: 422 }
+			);
+		}
+
+		const durationMs = Date.now() - startTime;
+		log.info('Chat request voltooid', {
+			durationMs,
+			model: 'claude-sonnet-4-5-20250929',
+			thinking: needsThinking,
+			tokens: estimatedTokens,
+			criticStatus,
+			step: currentStep
+		});
+
+		return json({
+			...result.data,
+			tokenUsage: estimatedTokens,
+			criticStatus,
+			...(warning ? { warning } : {})
+		});
 	} catch (error) {
+		const durationMs = Date.now() - startTime;
+		log.error('API fout', error, { durationMs, step: currentStep });
+
 		// Geef duidelijke foutmelding voor bekende Anthropic API fouten
 		if (error instanceof Anthropic.APIError) {
 			const msg = error.message;

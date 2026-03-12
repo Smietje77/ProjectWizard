@@ -1,19 +1,17 @@
 import type { WizardAnswer } from '$lib/types';
+import { REQUIRED_CATEGORIES, type RequiredCategory } from '$lib/constants';
 
-// Vereiste categorieën voor voltooiing (gesynchroniseerd met coordinator.ts)
-const REQUIRED_CATEGORIES = [
-	'website_type',
-	'project_doel',
-	'doelgroep',
-	'kernfunctionaliteiten',
-	'frontend_keuze',
-	'database_keuze',
-	'auth_keuze',
-	'deployment_keuze',
-	'design_stijl'
-] as const;
+export type { RequiredCategory };
 
-export type RequiredCategory = (typeof REQUIRED_CATEGORIES)[number];
+// Snapshot voor undo functionaliteit
+export interface WizardSnapshot {
+	answers: WizardAnswer[];
+	categoryDepth: Record<string, 'onvoldoende' | 'basis' | 'voldoende'>;
+	currentStep: number;
+	timestamp: number;
+}
+
+const MAX_SNAPSHOTS = 50;
 
 // Coordinator response structuur
 export interface CoordinatorResponse {
@@ -57,6 +55,9 @@ class WizardStore {
 	// Alle antwoorden
 	answers = $state<WizardAnswer[]>([]);
 
+	// Undo snapshots (FIFO, max MAX_SNAPSHOTS)
+	snapshots = $state<WizardSnapshot[]>([]);
+
 	// Opgeslagen generatie-resultaat (uit Supabase bij hervatten)
 	generatedOutput = $state<Record<string, unknown> | null>(null);
 
@@ -95,6 +96,7 @@ class WizardStore {
 		this.currentStep = 0;
 		this.answers = [];
 		this.categoryDepth = {};
+		this.snapshots = [];
 		this.isComplete = false;
 		this.isLoading = false;
 		this.error = null;
@@ -105,6 +107,7 @@ class WizardStore {
 
 	// Sla antwoord op en ga naar volgende vraag
 	addAnswer(answer: WizardAnswer) {
+		this.takeSnapshot();
 		this.answers = [...this.answers, answer];
 		this.currentStep = this.answers.length;
 
@@ -135,8 +138,13 @@ class WizardStore {
 			this.categoryDepth = { ...this.categoryDepth, ...response.categorie_diepte };
 		}
 
-		// Compleet als AI zegt dat het klaar is OF alle categorieën zijn afgevinkt
-		this.isComplete = response.is_compleet || this.completedCategories.size >= REQUIRED_CATEGORIES.length;
+		// Compleet als: (AI zegt klaar EN minstens 7/9 categorieën gedekt) OF alle categorieën voldoende
+		const allCategoriesComplete = this.completedCategories.size >= REQUIRED_CATEGORIES.length;
+		const mostCategoriesCovered =
+			REQUIRED_CATEGORIES.filter(
+				(c) => this.categoryDepth[c] === 'voldoende' || this.categoryDepth[c] === 'basis'
+			).length >= 7;
+		this.isComplete = (response.is_compleet && mostCategoriesCovered) || allCategoriesComplete;
 	}
 
 	// Markeer categorie als voltooid
@@ -169,6 +177,7 @@ class WizardStore {
 	// Bevestig bewerkt antwoord: vervang en verwijder alles erna
 	confirmEditAnswer(index: number, newAnswer: string) {
 		if (index < 0 || index >= this.answers.length) return;
+		this.takeSnapshot();
 
 		const original = this.answers[index];
 		const updatedAnswer: WizardAnswer = { ...original, answer: newAnswer };
@@ -188,6 +197,7 @@ class WizardStore {
 	// Sla huidige vraag over
 	skipCurrentQuestion(): string | null {
 		if (!this.currentQuestion) return null;
+		this.takeSnapshot();
 
 		const skipAnswer: WizardAnswer = {
 			step: this.currentStep,
@@ -203,12 +213,52 @@ class WizardStore {
 		return '[OVERGESLAGEN] De gebruiker heeft deze vraag overgeslagen.';
 	}
 
+	// Maak snapshot van huidige state (voor undo)
+	private takeSnapshot() {
+		const snapshot: WizardSnapshot = {
+			answers: structuredClone(this.answers),
+			categoryDepth: { ...this.categoryDepth },
+			currentStep: this.currentStep,
+			timestamp: Date.now()
+		};
+		this.snapshots = [...this.snapshots.slice(-(MAX_SNAPSHOTS - 1)), snapshot];
+	}
+
+	// Herstel state naar een eerder snapshot
+	undoToSnapshot(index?: number): boolean {
+		if (this.snapshots.length === 0) return false;
+
+		const targetIndex = index ?? this.snapshots.length - 1;
+		if (targetIndex < 0 || targetIndex >= this.snapshots.length) return false;
+
+		const snapshot = this.snapshots[targetIndex];
+		this.answers = structuredClone(snapshot.answers);
+		this.categoryDepth = { ...snapshot.categoryDepth };
+		this.currentStep = snapshot.currentStep;
+
+		// Verwijder dit snapshot en alles erna
+		this.snapshots = this.snapshots.slice(0, targetIndex);
+
+		// Reset UI state
+		this.currentQuestion = null;
+		this.editingIndex = null;
+		this.viewMode = 'question';
+		this.isComplete = false;
+
+		return true;
+	}
+
+	get canUndo(): boolean {
+		return this.snapshots.length > 0;
+	}
+
 	// Herbouw categoryDepth uit opgeslagen antwoorden (backward compatibility)
+	// Gebruikt 'basis' als default — de coordinator bepaalt de werkelijke diepte via categorie_diepte
 	private rebuildCategories(answers: WizardAnswer[]) {
 		const depth: Record<string, 'onvoldoende' | 'basis' | 'voldoende'> = {};
 		for (const a of answers) {
 			if (a.categorie && REQUIRED_CATEGORIES.includes(a.categorie as RequiredCategory)) {
-				depth[a.categorie] = 'voldoende';
+				depth[a.categorie] = 'basis';
 			}
 		}
 		this.categoryDepth = depth;
@@ -224,6 +274,7 @@ class WizardStore {
 		answers: WizardAnswer[];
 		generated_output?: Record<string, unknown> | null;
 		category_depth?: Record<string, 'onvoldoende' | 'basis' | 'voldoende'> | null;
+		is_complete?: boolean | null;
 	}) {
 		this.projectId = data.id;
 		this.projectName = data.name;
@@ -239,6 +290,7 @@ class WizardStore {
 		this.error = null;
 		this.viewMode = 'question';
 		this.editingIndex = null;
+		this.snapshots = [];
 
 		// Gebruik opgeslagen category_depth als beschikbaar, anders rebuild
 		if (data.category_depth && Object.keys(data.category_depth).length > 0) {
@@ -247,8 +299,9 @@ class WizardStore {
 			this.rebuildCategories(data.answers);
 		}
 
-		// Check completion status
-		this.isComplete = this.completedCategories.size >= REQUIRED_CATEGORIES.length;
+		// Check completion status: database flag OF alle categorieën voldoende
+		this.isComplete =
+			data.is_complete === true || this.completedCategories.size >= REQUIRED_CATEGORIES.length;
 	}
 
 	// Reset alles
@@ -267,6 +320,7 @@ class WizardStore {
 		this.editingIndex = null;
 		this.answers = [];
 		this.categoryDepth = {};
+		this.snapshots = [];
 		this.generatedOutput = null;
 	}
 }

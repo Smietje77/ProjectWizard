@@ -2,11 +2,16 @@ import type { Handle } from '@sveltejs/kit';
 import { redirect } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { createSupabaseServerClient } from '$lib/server/supabase-ssr';
+import { checkRateLimit, RATE_LIMITS } from '$lib/server/rate-limiter';
+import { randomUUID } from 'crypto';
 
 // Routes die GEEN authenticatie vereisen
 const PUBLIC_ROUTES = ['/login'];
 
 export const handle: Handle = async ({ event, resolve }) => {
+	// Request ID genereren voor gestructureerde logging
+	event.locals.requestId = randomUUID();
+
 	// Supabase SSR client aanmaken per request
 	event.locals.supabase = createSupabaseServerClient(event.cookies);
 
@@ -35,6 +40,22 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// Ingelogde gebruiker op /login → redirect naar home
 	if (user && event.url.pathname === '/login') {
 		throw redirect(303, '/');
+	}
+
+	// Rate limiting voor API endpoints
+	if (event.url.pathname.startsWith('/api/') && event.url.pathname in RATE_LIMITS) {
+		const rateLimitKey = user?.id ?? event.getClientAddress();
+		const rateCheck = checkRateLimit(rateLimitKey, event.url.pathname);
+		if (!rateCheck.allowed) {
+			const retryAfterSec = Math.ceil(rateCheck.retryAfterMs / 1000);
+			return new Response(JSON.stringify({ error: 'Te veel verzoeken. Probeer het later opnieuw.' }), {
+				status: 429,
+				headers: {
+					'Content-Type': 'application/json',
+					'Retry-After': String(retryAfterSec)
+				}
+			});
+		}
 	}
 
 	const response = await resolve(event);

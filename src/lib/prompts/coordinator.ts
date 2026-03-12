@@ -1,25 +1,5 @@
-export const REQUIRED_CATEGORIES = [
-	'website_type',
-	'project_doel',
-	'doelgroep',
-	'kernfunctionaliteiten',
-	'frontend_keuze',
-	'database_keuze',
-	'auth_keuze',
-	'deployment_keuze',
-	'design_stijl'
-] as const;
-
-export const AVAILABLE_SPECIALISTS = [
-	'requirements',
-	'architect',
-	'frontend',
-	'backend',
-	'devops',
-	'integration',
-	'testing',
-	'design'
-] as const;
+import { REQUIRED_CATEGORIES, AVAILABLE_SPECIALISTS } from '$lib/constants';
+export { REQUIRED_CATEGORIES, AVAILABLE_SPECIALISTS };
 
 export const WEBSITE_TYPE_FEATURES: Record<string, { label: string; features: string[] }> = {
 	ecommerce: {

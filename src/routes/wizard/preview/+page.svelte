@@ -19,6 +19,16 @@
 	let envSaved = $state(false);
 	let copiedFile = $state<string | null>(null);
 	let copiedClaudeCmd = $state(false);
+	let copiedFileTimeout: ReturnType<typeof setTimeout> | null = null;
+	let copiedClaudeCmdTimeout: ReturnType<typeof setTimeout> | null = null;
+
+	// Cleanup timers bij unmount
+	$effect(() => {
+		return () => {
+			if (copiedFileTimeout) clearTimeout(copiedFileTimeout);
+			if (copiedClaudeCmdTimeout) clearTimeout(copiedClaudeCmdTimeout);
+		};
+	});
 	let isDownloading = $state(false);
 	let generationResult = $state<{
 		success: boolean;
@@ -144,6 +154,26 @@
 								"line:",
 								line,
 							);
+						}
+						eventType = "";
+					}
+				}
+			}
+
+			// Verwerk resterende buffer na stream einde
+			if (buffer.trim()) {
+				const remainingLines = buffer.split("\n");
+				for (const line of remainingLines) {
+					if (line.startsWith("event: ")) {
+						eventType = line.slice(7);
+					} else if (line.startsWith("data: ") && eventType) {
+						try {
+							const data = JSON.parse(line.slice(6));
+							if (eventType === "done") generationResult = data;
+							else if (eventType === "error")
+								generationResult = { success: false, error: data.error };
+						} catch {
+							/* ignore parse errors in trailing buffer */
 						}
 						eventType = "";
 					}
@@ -423,7 +453,8 @@
 													file.content,
 												);
 												copiedFile = file.path;
-												setTimeout(() => {
+												if (copiedFileTimeout) clearTimeout(copiedFileTimeout);
+												copiedFileTimeout = setTimeout(() => {
 													copiedFile = null;
 												}, 2000);
 											}}
@@ -461,7 +492,8 @@
 							const path = `C:\\claude_projects\\${safeName}`;
 							await navigator.clipboard.writeText(path);
 							copiedClaudeCmd = true;
-							setTimeout(() => {
+							if (copiedClaudeCmdTimeout) clearTimeout(copiedClaudeCmdTimeout);
+							copiedClaudeCmdTimeout = setTimeout(() => {
 								copiedClaudeCmd = false;
 							}, 2000);
 						}}

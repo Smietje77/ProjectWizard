@@ -214,7 +214,7 @@ describe('updateProjectSchema', () => {
 	it('accepteert generated_output', () => {
 		const result = updateProjectSchema.safeParse({
 			generated_output: {
-				project_name: 'Test',
+				success: true,
 				files: [{ path: 'test.md', content: '# Test' }]
 			}
 		});

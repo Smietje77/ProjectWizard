@@ -27,6 +27,16 @@
     let showEvalsFor = $state<string | null>(null);
     let copiedEval = $state<string | null>(null);
     let regenerateEvals = $state(true);
+    let copiedEvalTimeout: ReturnType<typeof setTimeout> | null = null;
+    let refineSuccessTimeout: ReturnType<typeof setTimeout> | null = null;
+
+    // Cleanup timers bij unmount
+    $effect(() => {
+        return () => {
+            if (copiedEvalTimeout) clearTimeout(copiedEvalTimeout);
+            if (refineSuccessTimeout) clearTimeout(refineSuccessTimeout);
+        };
+    });
 
     // --- Derived ---
     let skillFiles = $derived(
@@ -111,7 +121,8 @@
     async function copyToClipboard(text: string, id: string) {
         await navigator.clipboard.writeText(text);
         copiedEval = id;
-        setTimeout(() => {
+        if (copiedEvalTimeout) clearTimeout(copiedEvalTimeout);
+        copiedEvalTimeout = setTimeout(() => {
             copiedEval = null;
         }, 2000);
     }
@@ -199,7 +210,8 @@
             feedbackText = "";
 
             // Auto-dismiss success message
-            setTimeout(() => {
+            if (refineSuccessTimeout) clearTimeout(refineSuccessTimeout);
+            refineSuccessTimeout = setTimeout(() => {
                 refineSuccess = null;
             }, 4000);
         } catch (error) {

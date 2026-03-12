@@ -1,6 +1,5 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getSupabase } from '$lib/supabase';
 import { createProjectSchema } from '$lib/validation/schemas';
 import { validateRequest } from '$lib/validation/validate';
 import { sanitizedError } from '$lib/server/errors';
@@ -13,7 +12,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	const { name, description, answers, current_step } = validation.data;
 
-	const { data, error } = await getSupabase()
+	const { data, error } = await locals.supabase
 		.from('projects')
 		.insert({
 			name,
@@ -34,9 +33,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 // Alle projecten ophalen (gefilterd op ingelogde gebruiker)
 export const GET: RequestHandler = async ({ locals }) => {
-	let query = getSupabase()
+	let query = locals.supabase
 		.from('projects')
 		.select('id, name, description, current_step, answers, category_depth, is_complete, generated_output, created_at, updated_at')
+		.is('deleted_at', null)
 		.order('updated_at', { ascending: false });
 
 	// Filter op user_id als er een ingelogde gebruiker is
