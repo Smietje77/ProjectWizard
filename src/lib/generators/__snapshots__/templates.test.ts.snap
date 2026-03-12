@@ -128,6 +128,11 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 # Dokploy
 DOKPLOY_URL=https://your-dokploy-instance.com
 
+# Google Gemini API (optioneel)
+# Wordt gebruikt voor design skill generatie als alternatief voor Claude
+# Krijg je key op: https://aistudio.google.com/app/apikeys
+GEMINI_API_KEY=
+
 # Applicatie
 PUBLIC_APP_URL=http://localhost:5173
 NODE_ENV=development"

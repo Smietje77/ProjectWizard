@@ -822,6 +822,24 @@ function extractConfirmedEffects(answers: WizardAnswer[]): ConfirmedEffects | nu
 }
 
 // ============================================
+// Product-strategie extractie
+// ============================================
+
+function detectRevenueModel(answers: WizardAnswer[]): string | undefined {
+	return detectEnum<string>(
+		answers,
+		{
+			subscription: ['abonnement', 'subscription', 'maandelijks', 'jaarlijks'],
+			freemium: ['freemium', 'gratis + betaald', 'free tier'],
+			'one-time': ['eenmalig', 'one-time', 'eenmalige betaling'],
+			marketplace: ['marketplace', 'commissie', 'transactiefee'],
+			free: ['gratis', 'free', 'open source', 'geen verdienmodel']
+		},
+		undefined as unknown as string
+	) || undefined;
+}
+
+// ============================================
 // Hoofdfunctie
 // ============================================
 
@@ -889,6 +907,18 @@ export function mapAnswersToGSD(
 		// Type-driven design
 		websiteType: detectWebsiteType(answers),
 		uiStyleDetail: detectUiStyleDetail(answers),
-		selectedPalette: detectSelectedPalette(answers)
+		selectedPalette: detectSelectedPalette(answers),
+
+		// Product-strategie (optioneel)
+		brandPersonality: findAnswer(answers, 'personality', 'persoonlijkheid', 'merk', 'persoon was') ?? undefined,
+		toneOfVoice: findAnswer(answers, 'tone', 'toon', 'praten', 'communicatie', 'voice') ?? undefined,
+		brandAntiPatterns: findAnswer(answers, 'anti-pattern', 'nooit', 'vermijden', 'niet uitstralen') ?? undefined,
+		revenueModel: detectRevenueModel(answers),
+		ninetyDayGoal: findAnswer(answers, '90 dagen', 'drie maanden', '90-day', 'succes over 3') ?? undefined,
+		sixMonthVision: findAnswer(answers, '6 maanden', 'zes maanden', 'half jaar') ?? undefined,
+		constraints: findAnswer(answers, 'constraint', 'beperking', 'budget', 'beperkingen') ?? undefined,
+		goToMarket: findAnswer(answers, 'lancering', 'go-to-market', 'marketing', 'bij mensen brengen') ?? undefined,
+		currentAlternatives: findAnswer(answers, 'alternatief', 'concurrent', 'nu gebruik', 'huidige oploss') ?? undefined,
+		competitorFrustrations: findAnswer(answers, 'frustratie', 'mis met', 'kapot', 'niet werken') ?? undefined
 	};
 }

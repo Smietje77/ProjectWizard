@@ -21,3 +21,5 @@ export {
   generateDeploymentSkillTemplate,
   generateSecuritySkillTemplate
 } from './skills';
+export { generateProductVisionTemplate, hasEnoughProductStrategy } from './product-vision';
+export { generateStitchPrompt } from './stitch-prompt';

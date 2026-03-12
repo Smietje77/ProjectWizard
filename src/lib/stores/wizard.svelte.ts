@@ -1,7 +1,7 @@
 import type { WizardAnswer } from '$lib/types';
-import { REQUIRED_CATEGORIES, type RequiredCategory } from '$lib/constants';
+import { REQUIRED_CATEGORIES, BONUS_CATEGORIES, ALL_CATEGORIES, type RequiredCategory, type BonusCategory, type AnyCategory } from '$lib/constants';
 
-export type { RequiredCategory };
+export type { RequiredCategory, BonusCategory, AnyCategory };
 
 // Snapshot voor undo functionaliteit
 export interface WizardSnapshot {
@@ -20,7 +20,7 @@ export interface CoordinatorResponse {
 	vraag_type: 'multiple_choice' | 'vrije_tekst';
 	opties?: string[];
 	max_selecties?: number;
-	categorie?: RequiredCategory;
+	categorie?: AnyCategory;
 	advies: string;
 	advies_reden: string;
 	is_compleet: boolean;
@@ -85,6 +85,17 @@ class WizardStore {
 		return REQUIRED_CATEGORIES;
 	}
 
+	get bonusCategories() {
+		return BONUS_CATEGORIES;
+	}
+
+	// Hoeveel bonus-categorieën zijn afgedekt (0-3)
+	get bonusProgress(): number {
+		return BONUS_CATEGORIES.filter(
+			(c) => this.categoryDepth[c] === 'voldoende' || this.categoryDepth[c] === 'basis'
+		).length;
+	}
+
 	get answeredCount() {
 		return this.answers.length;
 	}
@@ -111,8 +122,8 @@ class WizardStore {
 		this.answers = [...this.answers, answer];
 		this.currentStep = this.answers.length;
 
-		// Track categorie als het antwoord er een heeft (backward compatibility)
-		if (answer.categorie && REQUIRED_CATEGORIES.includes(answer.categorie as RequiredCategory)) {
+		// Track categorie als het antwoord er een heeft (required + bonus)
+		if (answer.categorie && (ALL_CATEGORIES as readonly string[]).includes(answer.categorie)) {
 			if (!this.categoryDepth[answer.categorie]) {
 				this.categoryDepth = { ...this.categoryDepth, [answer.categorie]: 'basis' };
 			}
@@ -257,7 +268,7 @@ class WizardStore {
 	private rebuildCategories(answers: WizardAnswer[]) {
 		const depth: Record<string, 'onvoldoende' | 'basis' | 'voldoende'> = {};
 		for (const a of answers) {
-			if (a.categorie && REQUIRED_CATEGORIES.includes(a.categorie as RequiredCategory)) {
+			if (a.categorie && (ALL_CATEGORIES as readonly string[]).includes(a.categorie)) {
 				depth[a.categorie] = 'basis';
 			}
 		}

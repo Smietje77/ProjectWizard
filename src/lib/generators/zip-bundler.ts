@@ -14,7 +14,10 @@ import {
   generateMcpJsonTemplate,
   generateCoordinatorAgentTemplate,
   getSpecialistTemplate,
-  getSkillTemplate
+  getSkillTemplate,
+  generateProductVisionTemplate,
+  hasEnoughProductStrategy,
+  generateStitchPrompt
 } from './templates';
 
 interface BundleOptions {
@@ -80,7 +83,21 @@ function generateManifest(answers: WizardAnswers, projectName: string): string {
       mustHave: answers.coreFeatures.filter(f => f.priority === 'must').length,
       shouldHave: answers.coreFeatures.filter(f => f.priority === 'should').length,
       niceToHave: answers.coreFeatures.filter(f => f.priority === 'nice').length
-    }
+    },
+    ...(answers.brandPersonality || answers.revenueModel || answers.goToMarket ? {
+      productStrategy: {
+        ...(answers.brandPersonality ? { brandPersonality: answers.brandPersonality } : {}),
+        ...(answers.toneOfVoice ? { toneOfVoice: answers.toneOfVoice } : {}),
+        ...(answers.brandAntiPatterns ? { brandAntiPatterns: answers.brandAntiPatterns } : {}),
+        ...(answers.revenueModel ? { revenueModel: answers.revenueModel } : {}),
+        ...(answers.ninetyDayGoal ? { ninetyDayGoal: answers.ninetyDayGoal } : {}),
+        ...(answers.sixMonthVision ? { sixMonthVision: answers.sixMonthVision } : {}),
+        ...(answers.constraints ? { constraints: answers.constraints } : {}),
+        ...(answers.goToMarket ? { goToMarket: answers.goToMarket } : {}),
+        ...(answers.currentAlternatives ? { currentAlternatives: answers.currentAlternatives } : {}),
+        ...(answers.competitorFrustrations ? { competitorFrustrations: answers.competitorFrustrations } : {})
+      }
+    } : {})
   };
 
   return JSON.stringify(manifest, null, 2);
@@ -156,6 +173,23 @@ export async function generateProjectBundle(
           }
         }
       }
+    }
+
+    // PRODUCT-VISION.md — alleen als 2+ bonus categorieën zijn beantwoord
+    if (hasEnoughProductStrategy(answers)) {
+      projectFolder.file('PRODUCT-VISION.md', generateProductVisionTemplate(answers));
+    }
+
+    // STITCH-PROMPT.txt — altijd als er voldoende data is
+    const stitchPrompt = generateStitchPrompt(answers);
+    if (stitchPrompt.length > 30) {
+      projectFolder.file('STITCH-PROMPT.txt', [
+        '# Google Stitch UI Preview Prompt',
+        '# Kopieer dit naar: https://stitch.withgoogle.com',
+        '# Gebruik Experimental mode voor beste resultaten',
+        '',
+        stitchPrompt
+      ].join('\n'));
     }
   }
 

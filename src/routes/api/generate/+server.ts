@@ -12,7 +12,10 @@ import {
 	generateEnvExampleTemplate,
 	generateDesignSkillTemplate,
 	generateCoordinatorAgentTemplate,
-	getSpecialistTemplate
+	getSpecialistTemplate,
+	generateProductVisionTemplate,
+	hasEnoughProductStrategy,
+	generateStitchPrompt
 } from '$lib/generators/templates';
 import { getActiveSpecialists } from '$lib/generators/specialist-detection';
 import { generateSkills } from '$lib/generators/skill-generator';
@@ -26,6 +29,7 @@ import { validateRequest } from '$lib/validation/validate';
 import { sanitizedError } from '$lib/server/errors';
 import { logAuditEvent } from '$lib/server/audit';
 import { streamWithRetry } from '$lib/server/anthropic-client';
+import { isGeminiAvailable, generateWithGemini } from '$lib/server/gemini-client';
 import {
 	GENERATOR_SYSTEM_PROMPT,
 	PROMPT_GENERATOR_SYSTEM,
@@ -79,7 +83,7 @@ function buildStructuredContext(gsdAnswers: WizardAnswers): string {
 
 // ─── AI-enriched generatie functies (met template fallback) ──────────────────
 
-type FileSource = 'ai' | 'template';
+type FileSource = 'ai' | 'ai-gemini' | 'template';
 interface EnrichedResult { content: string; source: FileSource }
 
 async function generateEnrichedClaudeMd(
@@ -236,23 +240,26 @@ async function generateEnrichedDesignSkill(
 	answers: WizardAnswer[],
 	gsdAnswers: WizardAnswers
 ): Promise<EnrichedResult> {
+	const designPrompt = `Genereer een design skill voor dit project:\n\n${structuredContext}\n\nWizard antwoorden:\n${answersContext}`;
+
+	// Probeer Gemini eerst (sneller + goedkoper voor design tasks)
+	if (isGeminiAvailable()) {
+		try {
+			const geminiResult = await generateWithGemini(designPrompt, DESIGN_SKILL_GENERATOR_PROMPT);
+			if (geminiResult) return { content: geminiResult, source: 'ai-gemini' };
+		} catch (error) {
+			console.warn('Gemini design skill mislukt, val terug op Claude:', error);
+		}
+	}
+
+	// Claude fallback
 	try {
 		const message = await aiLimit(() =>
 			streamWithRetry({
 				model: 'claude-sonnet-4-5-20250929',
 				max_tokens: 4096,
 				system: DESIGN_SKILL_GENERATOR_PROMPT,
-				messages: [
-					{
-						role: 'user',
-						content: `Genereer een design skill voor dit project:
-
-${structuredContext}
-
-Wizard antwoorden:
-${answersContext}`
-					}
-				]
+				messages: [{ role: 'user', content: designPrompt }]
 			})
 		);
 
@@ -262,6 +269,7 @@ ${answersContext}`
 		console.error('Design skill generatie fout:', error);
 	}
 
+	// Template fallback
 	if (gsdAnswers.designStyle) {
 		return { content: generateDesignSkillTemplate(gsdAnswers), source: 'template' };
 	}
@@ -368,6 +376,31 @@ async function generateAllFiles(opts: GenerateOptions): Promise<GeneratedFile[]>
 	const skillFiles = await generateSkills(specialists, answers, gsdAnswers);
 	files.push(...skillFiles.map(f => ({ ...f, source: 'ai' as FileSource })));
 
+	// PRODUCT-VISION.md — alleen als 2+ bonus categorieën beantwoord
+	if (hasEnoughProductStrategy(gsdAnswers)) {
+		files.push({
+			path: 'PRODUCT-VISION.md',
+			content: generateProductVisionTemplate(gsdAnswers),
+			source: 'template'
+		});
+	}
+
+	// STITCH-PROMPT.txt — altijd als er voldoende data is
+	const stitchPrompt = generateStitchPrompt(gsdAnswers);
+	if (stitchPrompt.length > 30) {
+		files.push({
+			path: 'STITCH-PROMPT.txt',
+			content: [
+				'# Google Stitch UI Preview Prompt',
+				'# Kopieer dit naar: https://stitch.withgoogle.com',
+				'# Gebruik Experimental mode voor beste resultaten',
+				'',
+				stitchPrompt
+			].join('\n'),
+			source: 'template'
+		});
+	}
+
 	onProgress?.('Klaar!', 100);
 
 	return files;
@@ -465,7 +498,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 					});
 
 					// Audit logging (fire-and-forget)
-					const aiFiles = files.filter(f => f.source === 'ai').map(f => f.path);
+					const aiFiles = files.filter(f => f.source === 'ai' || f.source === 'ai-gemini').map(f => f.path);
 					const templateFiles = files.filter(f => f.source === 'template').map(f => f.path);
 					logAuditEvent(locals.supabase, {
 						userId: locals.user?.id,

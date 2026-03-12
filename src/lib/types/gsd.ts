@@ -50,6 +50,18 @@ export interface WizardAnswers {
   websiteType?: string;      // e.g. 'ecommerce', 'saas_b2b', 'portfolio'
   uiStyleDetail?: string;    // e.g. 'bento', 'aurora', 'corporate', 'dark_modern'
   selectedPalette?: string;  // e.g. 'saas_trust', 'luxury', 'dark_tech'
+
+  // Product-strategie (optioneel, bonus categorieën)
+  brandPersonality?: string;       // "De scherpe, georganiseerde vriend..."
+  toneOfVoice?: string;            // "Helder, behulpzaam, rustig zelfverzekerd"
+  brandAntiPatterns?: string;      // "Nooit enterprise-achtig, nooit kinderachtig"
+  revenueModel?: string;           // "subscription", "freemium", "one-time", etc.
+  ninetyDayGoal?: string;          // "50 actieve gebruikers, eerste betalende klant"
+  sixMonthVision?: string;         // "500 gebruikers, €5.000 MRR"
+  constraints?: string;            // "Part-time, €500/maand budget"
+  goToMarket?: string;             // "Build in public op Twitter, Product Hunt launch"
+  currentAlternatives?: string;    // "Notion databases, Google Drive, handmatig"
+  competitorFrustrations?: string; // "Te duur, te complex, geen mobiele app"
 }
 
 export interface ScreenshotAnalysis {

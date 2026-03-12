@@ -68,6 +68,13 @@ export function generateEnvExampleTemplate(answers: WizardAnswers): string {
     lines.push('');
   }
 
+  // Gemini (optioneel)
+  lines.push('# Google Gemini API (optioneel)');
+  lines.push('# Wordt gebruikt voor design skill generatie als alternatief voor Claude');
+  lines.push('# Krijg je key op: https://aistudio.google.com/app/apikeys');
+  lines.push('GEMINI_API_KEY=');
+  lines.push('');
+
   // General
   lines.push('# Applicatie');
   if (answers.frontendFramework === 'sveltekit') {

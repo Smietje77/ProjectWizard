@@ -11,6 +11,18 @@ export function generateClaudeMdTemplate(answers: WizardAnswers): string {
     ? `\n## Design Referenties\n\nDit project bevat screenshot-analyses als design referentie. Volg de design skill (.claude/skills/design.md) voor implementatie details.\n`
     : '';
 
+  const productContextLines: string[] = [];
+  if (answers.brandPersonality) productContextLines.push(`- **Brand**: ${answers.brandPersonality}`);
+  if (answers.toneOfVoice) productContextLines.push(`- **Tone**: ${answers.toneOfVoice}`);
+  if (answers.brandAntiPatterns) productContextLines.push(`- **Anti-patterns**: ${answers.brandAntiPatterns}`);
+  if (answers.revenueModel) productContextLines.push(`- **Revenue**: ${answers.revenueModel}`);
+  if (answers.ninetyDayGoal) productContextLines.push(`- **90-dagen doel**: ${answers.ninetyDayGoal}`);
+  if (answers.goToMarket) productContextLines.push(`- **Go-to-market**: ${answers.goToMarket}`);
+
+  const productContextSection = productContextLines.length > 0
+    ? `\n## Product Context\n\n${productContextLines.join('\n')}\n`
+    : '';
+
   return `# ${answers.projectName}
 
 ## Projectbeschrijving
@@ -59,7 +71,7 @@ ${answers.hasDomain ? `- **Domein:** ${answers.domainName}` : '- Geen custom dom
 ## MCP Servers
 
 ${answers.requiredMcps.length > 0 ? answers.requiredMcps.map(m => `- ${m}`).join('\n') : 'Geen MCP servers geconfigureerd.'}
-${screenshotSection}
+${productContextSection}${screenshotSection}
 ## Projectstructuur
 
 Zie \`.planning/\` folder voor projectcontext (INITIAL_CONTEXT.md, REQUIREMENTS.md, ROADMAP.md).

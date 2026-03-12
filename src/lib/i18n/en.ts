@@ -148,6 +148,7 @@ export default {
 		skillReviewHint: 'Review and refine the generated skills before downloading.'
 	},
 	progress: {
+		website_type: 'Website Type',
 		project_doel: 'Project goal',
 		doelgroep: 'Target audience',
 		kernfunctionaliteiten: 'Features',
@@ -156,6 +157,9 @@ export default {
 		auth_keuze: 'Authentication',
 		deployment_keuze: 'Deployment',
 		design_stijl: 'Design',
+		merk_identiteit: 'Brand Identity',
+		business_model: 'Business Model',
+		lancering_strategie: 'Launch Strategy',
 		depthOnvoldoende: 'Not yet discussed',
 		depthBasis: 'Broadly discussed',
 		depthVoldoende: 'Sufficient detail'

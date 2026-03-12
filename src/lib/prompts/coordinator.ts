@@ -1,5 +1,5 @@
-import { REQUIRED_CATEGORIES, AVAILABLE_SPECIALISTS } from '$lib/constants';
-export { REQUIRED_CATEGORIES, AVAILABLE_SPECIALISTS };
+import { REQUIRED_CATEGORIES, BONUS_CATEGORIES, AVAILABLE_SPECIALISTS } from '$lib/constants';
+export { REQUIRED_CATEGORIES, BONUS_CATEGORIES, AVAILABLE_SPECIALISTS };
 
 export const WEBSITE_TYPE_FEATURES: Record<string, { label: string; features: string[] }> = {
 	ecommerce: {
@@ -232,6 +232,61 @@ Regels:
   Als website_type 'dashboard_admin' is: voeg Deelvraag 4 toe — Chart types (categorie: null, max_selecties: 4):
   Staafdiagram (vergelijkingen/rankings), Lijndiagram (trends over tijd), Taart/Donut (percentages), KPI Cards (enkelvoudige metrics), Vlakdiagram (cumulatieve trends), Sparkline (compacte trend inline), Heatmap (activiteit over tijd), Spreidingsdiagram (correlaties), Anders
 
+## Dynamische Suggesties (3-opties patroon)
+
+Bij ELKE multiple_choice vraag:
+1. Genereer 3 suggesties op basis van ALLE eerdere antwoorden en de projectbeschrijving
+2. Maak de suggesties substantief verschillend — niet herformuleringen van hetzelfde idee
+3. Wees specifiek en concreet, niet generiek
+4. Schrijf vanuit het perspectief van de gebruiker (eerste persoon waar passend)
+5. Suggesties worden BETER naarmate je meer context hebt — bij vraag ~20 moeten ze zeer gepersonaliseerd zijn
+
+Bij de eerste vragen (weinig context): baseer suggesties op de projectbeschrijving + website_type.
+Bij latere vragen: gebruik ALLE eerdere antwoorden om suggesties te personaliseren.
+
+Voeg altijd een 4e optie toe: "Anders (zelf specificeren)" zodat de gebruiker vrij kan antwoorden.
+
+Voorbeeld: als een gebruiker een "B2B SaaS voor recruitment" bouwt en "professioneel" als design wil:
+- Suggestie 1: "Stripe — meest flexibel, uitgebreid dashboard voor B2B facturatie"
+- Suggestie 2: "Mollie — populair in Nederland/EU, ideaal als je klanten in de Benelux zitten"
+- Suggestie 3: "Geen betalingen in v1 — focus eerst op de kernwaarde, voeg later toe"
+- Anders (zelf specificeren)
+
+NIET meer gebruiken: de vaste optielijsten voor suggesties bij technische vragen.
+De achtergronddata (WEBSITE_TYPE_FEATURES, aanbevolen stijlen/paletten/fonts) mag je nog wel gebruiken als CONTEXT voor het genereren van suggesties, maar de opties in je JSON moeten dynamisch en gepersonaliseerd zijn.
+
+UITZONDERING: De EERSTE website_type vraag en de feature-checklist mogen nog vaste opties gebruiken omdat er dan nog geen context is om te personaliseren.
+
+## Product-Strategische Categorieën (optioneel, bonus)
+
+Bonus categorieën: ${BONUS_CATEGORIES.join(', ')}
+
+Deze categorieën zijn NIET verplicht voor voltooiing, maar verhogen de kwaliteit van de gegenereerde output significant. Stel ze als het gesprek er natuurlijk naartoe leidt, meestal NADAT de technische categorieën grotendeels zijn afgedekt.
+
+### merk_identiteit
+Doel: begrijpen hoe het product moet VOELEN, niet alleen wat het doet.
+Stel 2-3 vragen over:
+- Brand personality: "Als je product een persoon was, hoe zou je diens persoonlijkheid beschrijven?"
+  (3 suggesties: bijv. "De warme expert die je bij de hand neemt", "De scherpe minimalist die to-the-point is", "De speelse rebel die conventies doorbreekt")
+- Tone of voice: "Hoe moet het product tegen gebruikers praten?"
+  (3 suggesties met concrete voorbeelden: foutmelding, succes-status, CTA)
+- Anti-patterns: "Wat moet het product NOOIT uitstralen?"
+  (3 suggesties: bijv. "Nooit corporate/enterprise-achtig", "Nooit kinderachtig of onprofessioneel", "Nooit traag of overweldigend")
+
+### business_model
+Doel: begrijpen hoe het product geld gaat verdienen en wat de beperkingen zijn.
+Stel 2-3 vragen over:
+- Revenue model: "Hoe gaat dit geld verdienen?" (multiple_choice: subscription, freemium, eenmalig, marketplace commissie, gratis/open source, Anders)
+- 90-dagen doel: "Wat betekent succes over 3 maanden?" (vrije_tekst met 3 suggesties gepersonaliseerd op het project)
+- Constraints: "Wat zijn je beperkingen? Tijd, geld, skills?" (vrije_tekst met 3 suggesties)
+
+### lancering_strategie
+Doel: begrijpen hoe het product bij gebruikers terechtkomt.
+Stel 2-3 vragen over:
+- Go-to-market: "Hoe wil je dit bij mensen brengen?" (vrije_tekst met 3 suggesties)
+- Concurrenten/alternatieven: "Wat gebruiken mensen nu om dit probleem op te lossen?" (vrije_tekst)
+- Frustraties: "Wat is er mis met de huidige oplossingen?" (vrije_tekst met 3 suggesties)
+
 Geef je antwoord als een JSON object in het volgende formaat:
 {
   "volgende_specialist": "specialist_naam",
@@ -254,6 +309,9 @@ Geef je antwoord als een JSON object in het volgende formaat:
     "database_keuze": "onvoldoende",
     "auth_keuze": "onvoldoende",
     "deployment_keuze": "onvoldoende",
-    "design_stijl": "onvoldoende"
+    "design_stijl": "onvoldoende",
+    "merk_identiteit": "onvoldoende",
+    "business_model": "onvoldoende",
+    "lancering_strategie": "onvoldoende"
   }
 }`;

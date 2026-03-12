@@ -39,5 +39,28 @@
 				</span>
 			{/each}
 		</div>
+
+		<!-- Bonus categorie indicators (product-strategie) -->
+		{#if wizardStore.bonusProgress > 0}
+			<div class="mt-2 flex flex-wrap items-center gap-2">
+				<span class="text-xs opacity-40">Bonus:</span>
+				{#each wizardStore.bonusCategories as category}
+					{@const depth = wizardStore.categoryDepth[category] || 'onvoldoende'}
+					{@const isVoldoende = depth === 'voldoende'}
+					{@const isBasis = depth === 'basis'}
+					{#if isBasis || isVoldoende}
+						<span
+							class="rounded-full px-2 py-0.5 text-[11px] font-medium transition-colors {isVoldoende
+								? 'bg-tertiary-500/15 text-tertiary-500'
+								: 'bg-amber-500/10 text-amber-600/70 dark:text-amber-400/70'}"
+							title={(i18n.t.progress as Record<string, string>)[`depth${depth.charAt(0).toUpperCase()}${depth.slice(1)}`] ?? depth}
+						>
+							{#if isVoldoende}&#10003;{:else}&#9679;{/if}
+							{(i18n.t.progress as Record<string, string>)[category] ?? category}
+						</span>
+					{/if}
+				{/each}
+			</div>
+		{/if}
 	</div>
 </div>

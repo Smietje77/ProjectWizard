@@ -15,6 +15,18 @@ export const REQUIRED_CATEGORIES = [
 
 export type RequiredCategory = (typeof REQUIRED_CATEGORIES)[number];
 
+export const BONUS_CATEGORIES = [
+	'merk_identiteit',
+	'business_model',
+	'lancering_strategie'
+] as const;
+
+export type BonusCategory = (typeof BONUS_CATEGORIES)[number];
+
+export const ALL_CATEGORIES = [...REQUIRED_CATEGORIES, ...BONUS_CATEGORIES] as const;
+
+export type AnyCategory = RequiredCategory | BonusCategory;
+
 export const AVAILABLE_SPECIALISTS = [
 	'requirements',
 	'architect',

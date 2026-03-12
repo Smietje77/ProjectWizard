@@ -10,68 +10,24 @@ Zorgen dat Claude Code alle informatie heeft om een project succesvol te bouwen 
 - **Frontend**: SvelteKit met Superforms
 - **Database**: Supabase (self-hosted op VPS)
 - **Styling**: Tailwind CSS + Skeleton UI
-- **AI**: Anthropic Claude API (claude-sonnet-4-5-20250929)
+- **AI**: Anthropic Claude API + Google Gemini API (optioneel, voor design)
 - **i18n**: Nederlands (primair) + Engels
 - **Deployment**: Dokploy op VPS
 
 ## Bash Commands
 ```bash
 npm install          # Installeer dependencies
-npm run dev          # Start development server (http://localhost:5173)
+npm run dev          # Start development server
 npm run build        # Production build
-npm run preview      # Preview production build
-npm run lint         # Run linter
-npm run format       # Format code met Prettier
+npm run check        # TypeScript check
+npm run test         # Unit tests (Vitest)
+npm run test:e2e     # E2E tests (Playwright)
 ```
 
-## Architectuur
-
-### Frontend Structuur
-```
-src/
-├── routes/
-│   ├── +page.svelte              # Landing/start pagina
-│   ├── +layout.svelte            # Hoofd layout met i18n
-│   ├── wizard/
-│   │   ├── +page.svelte          # Wizard hoofdpagina
-│   │   ├── [step]/+page.svelte   # Dynamische stappen
-│   │   └── preview/+page.svelte  # Live preview
-│   └── api/
-│       ├── chat/+server.ts       # Claude API endpoint
-│       └── generate/+server.ts   # Project generatie endpoint
-├── lib/
-│   ├── components/               # UI componenten
-│   ├── stores/                   # Svelte stores (wizard state)
-│   ├── specialists/              # AI specialist configuraties
-│   ├── i18n/                     # Vertalingen
-│   └── utils/                    # Hulpfuncties
-└── app.html
-```
-
-### Database Schema (Supabase)
-```sql
--- Projecten (opgeslagen wizard sessies)
-projects (
-  id uuid PRIMARY KEY,
-  name text,
-  description text,
-  current_step integer,
-  answers jsonb,
-  generated_output jsonb,
-  created_at timestamp,
-  updated_at timestamp
-)
-
--- Templates (opgeslagen project templates)
-templates (
-  id uuid PRIMARY KEY,
-  name text,
-  description text,
-  category text,
-  config jsonb,
-  created_at timestamp
-)
-```
+## Omgevingsvariabelen
+Zie `.env.example` voor alle benodigde variabelen.
+- `ANTHROPIC_API_KEY` — verplicht (coordinator, reasoning, JSON generatie)
+- `GEMINI_API_KEY` — optioneel (design skill generatie, betere CSS/Tailwind output)
 
 ## Code Conventies
 - TypeScript strict mode
@@ -80,49 +36,25 @@ templates (
 - Engelse code/variabelen
 - Zod voor alle validatie schemas
 
-## Belangrijke Flows
+## Project Generatie Output
+- CLAUDE.md, PROMPT.md, PRODUCT-VISION.md (optioneel), STITCH-PROMPT.txt (optioneel)
+- manifest.json, .mcp.json, .env.example, TEAM.md
+- agents/ (coordinator + specialists), .claude/skills/, .planning/ (GSD)
 
-### 1. Wizard Flow
-1. Gebruiker typt vrije tekst idee
-2. Coordinator agent analyseert en bepaalt eerste vraag
-3. Per vraag: specialist geeft advies + multiple choice/vrije tekst
-4. Antwoorden worden opgeslagen in Supabase
-5. Live preview update na elk antwoord
-6. Bij 100% compleet: genereer projectmap
+## Voltooide Verbeteringen (Fase 1-5)
+Code audit volledig afgerond (30/30 taken). Zie `.fixes/DEEP-ANALYSIS.md`.
 
-### 2. Project Generatie
-Output map bevat:
-- CLAUDE.md (projectcontext)
-- PROMPT.md (startprompt)
-- .mcp.json (MCP configuraties)
-- .env.example + .env.local (API keys)
-- agents/ (coordinator + specialists)
-- skills/ (benodigde skills)
+## Huidige Prioriteit: Fase 6 — Product-Strategie + Stitch + Gemini
 
-## MCP Integraties
-- **Supabase MCP**: Database queries en migraties
-- **Filesystem**: Projectmap generatie
-- **GitHub** (optioneel): Repository aanmaken
+**Lees `.fixes/MASTER-PROMPT.md` voor de 7 taken (taak 31-37).**
 
-## Omgevingsvariabelen
-Zie `.env.example` voor alle benodigde variabelen.
+1. Drie optionele bonus wizard-categorieën (merk, business, lancering)
+2. Dynamische "3 suggesties" patroon (context-aware opties)
+3. Product-strategische vragen in coordinator prompt
+4. Answer mapper + generators voor nieuwe velden
+5. PRODUCT-VISION.md generatie
+6. STITCH-PROMPT.txt (Google Stitch UI-preview)
+7. Gemini API multi-model: design generatie via Gemini, reasoning via Claude
 
-
-## Openstaande Verbeteringen
-
-**BELANGRIJK:** Lees `.fixes/DEEP-ANALYSIS.md` voor de volledige diepte-analyse en het gefaseerde verbeterplan (30 taken, 5 fases).
-
-### Huidige Prioriteit: Fase 1 — Kritieke Fixes
-1. Zod runtime validatie voor CoordinatorResponse (chat endpoint)
-2. Supabase client fix: SSR client ipv service role in API routes
-3. Unit tests voor `answer-mapper.ts` (895 regels ongeteste code)
-4. Fix `rebuildCategories()` diepte-verlies
-5. Fix `is_complete` dual-source inconsistentie
-6. Fix SSE stream buffer incomplete line handling
-7. setTimeout cleanup in Svelte componenten
-
-Werk per taak en test na elke wijziging.
-
-
-## Methodologie & Generatie Referentie
-Zie `PROJECT-HARNESS.md` voor het meesterdocument met alle generatie-patronen, anti-patronen, validatie-gates en framework-specifieke richtlijnen. Dit document is de referentie voor de coordinator, generator en answer-mapper.
+## Methodologie
+Zie `PROJECT-HARNESS.md` voor generatie-patronen en validatie-gates.

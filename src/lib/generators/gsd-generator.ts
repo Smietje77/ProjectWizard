@@ -272,6 +272,7 @@ function generateContextMd(answers: WizardAnswers): string {
   const servicesSection = formatServicesForContext(answers.externalServices);
   const designSection = formatDesignForContext(answers);
   const screenshotSection = formatScreenshotForContext(answers.screenshotAnalysis);
+  const strategySection = formatProductStrategyForContext(answers);
 
   return `# Initial Context & Pre-Decisions
 
@@ -332,7 +333,7 @@ ${answers.criticalFlows.length > 0 ? answers.criticalFlows.map(f => `- ${f}`).jo
 ${servicesSection}
 
 ---
-${screenshotSection}
+${strategySection}${screenshotSection}
 ## Assumptions
 - Gebruiker heeft Node.js 18+ geïnstalleerd
 - ${answers.database === 'supabase' ? 'Supabase instance is beschikbaar en geconfigureerd' : 'Database server is beschikbaar'}
@@ -999,6 +1000,31 @@ function formatDesignForContext(answers: WizardAnswers): string {
 - **Typography**: ${typoMap[answers.typography] || answers.typography}
 - **Component Stijl**: ${componentMap[answers.componentStyle] || answers.componentStyle}
 - **Design Tokens**: Zie \`.claude/skills/design.md\` voor gedetailleerde CSS variabelen en Tailwind configuratie`;
+}
+
+function formatProductStrategyForContext(answers: WizardAnswers): string {
+  const lines: string[] = [];
+
+  if (answers.brandPersonality) lines.push(`- **Brand Personality**: ${answers.brandPersonality}`);
+  if (answers.toneOfVoice) lines.push(`- **Tone of Voice**: ${answers.toneOfVoice}`);
+  if (answers.brandAntiPatterns) lines.push(`- **Anti-patterns**: ${answers.brandAntiPatterns}`);
+  if (answers.revenueModel) lines.push(`- **Revenue Model**: ${answers.revenueModel}`);
+  if (answers.ninetyDayGoal) lines.push(`- **90-dagen doel**: ${answers.ninetyDayGoal}`);
+  if (answers.sixMonthVision) lines.push(`- **6-maanden visie**: ${answers.sixMonthVision}`);
+  if (answers.constraints) lines.push(`- **Beperkingen**: ${answers.constraints}`);
+  if (answers.goToMarket) lines.push(`- **Go-to-market**: ${answers.goToMarket}`);
+  if (answers.currentAlternatives) lines.push(`- **Huidige alternatieven**: ${answers.currentAlternatives}`);
+  if (answers.competitorFrustrations) lines.push(`- **Concurrent-frustraties**: ${answers.competitorFrustrations}`);
+
+  if (lines.length === 0) return '';
+
+  return `## Product Strategie
+
+${lines.join('\n')}
+
+---
+
+`;
 }
 
 function formatScreenshotForContext(screenshots: PageScreenshot[] | null | undefined): string {
