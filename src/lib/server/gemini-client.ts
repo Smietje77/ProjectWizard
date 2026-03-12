@@ -2,13 +2,14 @@
 // Google Gemini API client — optioneel, voor design skill generatie
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { GEMINI_API_KEY } from '$env/static/private';
+import { env } from '$env/dynamic/private';
 
 let client: GoogleGenerativeAI | null = null;
 
 function getGeminiClient(): GoogleGenerativeAI | null {
-	if (!GEMINI_API_KEY) return null;
-	if (!client) client = new GoogleGenerativeAI(GEMINI_API_KEY);
+	const key = env.GEMINI_API_KEY;
+	if (!key) return null;
+	if (!client) client = new GoogleGenerativeAI(key);
 	return client;
 }
 
@@ -17,7 +18,7 @@ function getGeminiClient(): GoogleGenerativeAI | null {
  * Doet geen API call — checkt alleen de env variable.
  */
 export function isGeminiAvailable(): boolean {
-	return !!GEMINI_API_KEY;
+	return !!env.GEMINI_API_KEY;
 }
 
 /**
