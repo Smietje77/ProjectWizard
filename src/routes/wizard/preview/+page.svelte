@@ -32,7 +32,7 @@
 	let isDownloading = $state(false);
 	let generationResult = $state<{
 		success: boolean;
-		files?: Array<{ path: string; content: string }>;
+		files?: Array<{ path: string; content: string; binary?: boolean }>;
 		message?: string;
 		error?: string;
 		requiredEnvVars?: DetectedEnvVar[];
@@ -43,7 +43,7 @@
 		if (wizardStore.generatedOutput && !generationResult) {
 			const saved = wizardStore.generatedOutput as {
 				success?: boolean;
-				files?: Array<{ path: string; content: string }>;
+				files?: Array<{ path: string; content: string; binary?: boolean }>;
 				message?: string;
 				requiredEnvVars?: DetectedEnvVar[];
 			};
@@ -232,7 +232,11 @@
 			const folder = zip.folder(safeName);
 			if (!folder) return;
 			for (const file of generationResult.files) {
-				folder.file(file.path, file.content);
+				if (file.binary) {
+					folder.file(file.path, file.content, { base64: true });
+				} else {
+					folder.file(file.path, file.content);
+				}
 			}
 			const blob = await zip.generateAsync({
 				type: "blob",

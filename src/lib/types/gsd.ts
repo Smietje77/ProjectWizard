@@ -50,6 +50,7 @@ export interface WizardAnswers {
   websiteType?: string;      // e.g. 'ecommerce', 'saas_b2b', 'portfolio'
   uiStyleDetail?: string;    // e.g. 'bento', 'aurora', 'corporate', 'dark_modern'
   selectedPalette?: string;  // e.g. 'saas_trust', 'luxury', 'dark_tech'
+  designPreset?: string;     // e.g. 'voltflow', 'clean_pro', 'warm_craft'
 
   // Product-strategie (optioneel, bonus categorieën)
   brandPersonality?: string;       // "De scherpe, georganiseerde vriend..."

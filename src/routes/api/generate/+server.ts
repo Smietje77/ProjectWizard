@@ -15,7 +15,8 @@ import {
 	getSpecialistTemplate,
 	generateProductVisionTemplate,
 	hasEnoughProductStrategy,
-	generateStitchPrompt
+	generateStitchPrompt,
+	generateCodeRabbitConfig
 } from '$lib/generators/templates';
 import { getActiveSpecialists } from '$lib/generators/specialist-detection';
 import { generateSkills } from '$lib/generators/skill-generator';
@@ -29,7 +30,7 @@ import { validateRequest } from '$lib/validation/validate';
 import { sanitizedError } from '$lib/server/errors';
 import { logAuditEvent } from '$lib/server/audit';
 import { streamWithRetry } from '$lib/server/anthropic-client';
-import { isGeminiAvailable, generateWithGemini } from '$lib/server/gemini-client';
+import { isGeminiAvailable, generateWithGemini, generateImageWithGemini } from '$lib/server/gemini-client';
 import {
 	GENERATOR_SYSTEM_PROMPT,
 	PROMPT_GENERATOR_SYSTEM,
@@ -286,7 +287,7 @@ interface GenerateOptions {
 	onProgress?: (step: string, pct: number) => void;
 }
 
-interface GeneratedFile { path: string; content: string; source: FileSource }
+interface GeneratedFile { path: string; content: string; source: FileSource; binary?: boolean }
 
 async function generateAllFiles(opts: GenerateOptions): Promise<GeneratedFile[]> {
 	const { projectName, description, answers, gsdAnswers, onProgress } = opts;
@@ -359,6 +360,9 @@ async function generateAllFiles(opts: GenerateOptions): Promise<GeneratedFile[]>
 	// Team configuratie
 	files.push({ path: 'TEAM.md', content: generateTeamMd(gsdAnswers), source: 'template' });
 
+	// CodeRabbit AI code review configuratie
+	files.push({ path: '.coderabbit.yaml', content: generateCodeRabbitConfig(gsdAnswers), source: 'template' });
+
 	// Design skill (als er design antwoorden zijn)
 	const hasDesignAnswers = answers.some(
 		(a: WizardAnswer) => a.specialist === 'design' && a.type !== 'skipped'
@@ -376,11 +380,58 @@ async function generateAllFiles(opts: GenerateOptions): Promise<GeneratedFile[]>
 	const skillFiles = await generateSkills(specialists, answers, gsdAnswers);
 	files.push(...skillFiles.map(f => ({ ...f, source: 'ai' as FileSource })));
 
+	// Visuele assets via Gemini Image (optioneel)
+	if (isGeminiAvailable()) {
+		onProgress?.('Visuele assets genereren...', 92);
+
+		const designContext = [
+			gsdAnswers.designStyle ?? 'minimalistisch',
+			gsdAnswers.colorScheme === 'dark' ? 'dark theme' : 'light theme',
+			gsdAnswers.componentStyle ?? 'rounded',
+			gsdAnswers.brandPersonality ?? ''
+		].filter(Boolean).join(', ');
+
+		const imageResults = await Promise.allSettled([
+			generateImageWithGemini(
+				`Professional UI screenshot mockup of a ${gsdAnswers.websiteType ?? 'web'} application ` +
+				`called "${projectName}". ${designContext}. ` +
+				`Shows the main page with ${gsdAnswers.navigationPattern ?? 'topbar'} navigation. ` +
+				`Clean, modern interface. No browser chrome. 16:9 aspect ratio.`
+			),
+			generateImageWithGemini(
+				`Social media Open Graph preview image for "${projectName}". ` +
+				`${designContext}. Text "${projectName}" prominently displayed. ` +
+				`Professional, shareable, 1200x630. Clean background.`
+			),
+			generateImageWithGemini(
+				`Minimal favicon icon for "${projectName}". ` +
+				`Letter "${projectName.charAt(0).toUpperCase()}" or simple symbol. ` +
+				`${gsdAnswers.colorScheme === 'dark' ? 'Light on transparent' : 'Dark on transparent'}. ` +
+				`Flat design, recognizable at 32x32. Square.`
+			)
+		]);
+
+		const assetPaths = ['assets/mockup.png', 'assets/og-image.png', 'assets/favicon.png'];
+		for (let i = 0; i < imageResults.length; i++) {
+			const result = imageResults[i];
+			if (result.status === 'fulfilled' && result.value) {
+				files.push({
+					path: assetPaths[i],
+					content: result.value.data.toString('base64'),
+					source: 'ai-gemini',
+					binary: true
+				});
+			}
+		}
+	}
+
 	// PRODUCT-VISION.md — alleen als 2+ bonus categorieën beantwoord
 	if (hasEnoughProductStrategy(gsdAnswers)) {
 		files.push({
 			path: 'PRODUCT-VISION.md',
-			content: generateProductVisionTemplate(gsdAnswers),
+			content: generateProductVisionTemplate(gsdAnswers, {
+				hasGeneratedAssets: files.some(f => f.path.startsWith('assets/'))
+			}),
 			source: 'template'
 		});
 	}
@@ -514,7 +565,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 					send('done', {
 						success: true,
-						files: files.map((f) => ({ path: f.path, content: f.content })),
+						files: files.map((f) => ({ path: f.path, content: f.content, ...(f.binary ? { binary: true } : {}) })),
 						message: `Project "${projectName}" is gegenereerd.`,
 						requiredEnvVars: detectRequiredEnvVars(answers)
 					});
@@ -563,7 +614,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		return json({
 			success: true,
-			files: files.map((f) => ({ path: f.path, content: f.content })),
+			files: files.map((f) => ({ path: f.path, content: f.content, ...(f.binary ? { binary: true } : {}) })),
 			message: `Project "${projectName}" is gegenereerd.`,
 			requiredEnvVars: detectRequiredEnvVars(answers)
 		});

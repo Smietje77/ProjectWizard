@@ -200,6 +200,15 @@ Regels:
 - DESIGN STIJL — 3 DEELVRAGEN: Wanneer design_stijl aan de beurt is, stel drie opeenvolgende vragen in aparte rondes:
 
   Deelvraag 1 — UI Stijl (categorie: 'design_stijl', max_selecties: 1):
+  Als de gebruiker snel wil beginnen, bied als EERSTE opties 3 design presets aan:
+  1. "VoltFlow" — donker, lime-groen accent, glassmorphism, modern tech (Space Grotesk + Archivo)
+  2. "Clean Pro" — licht, blauw, strak, zakelijke SaaS (Inter)
+  3. "Warm Craft" — warm, amber, serif headings, ambachtelijk (Playfair Display + Source Sans 3)
+  4. "Liever zelf samenstellen" — ga door met de losse deelvragen hieronder
+  Bij een preset-keuze: sla Deelvraag 2 en 3 over (kleurenpalet en typografie zijn al bepaald).
+  Sla op als { categorie: 'design_stijl', designPreset: 'voltflow' | 'clean_pro' | 'warm_craft' }.
+
+  Als de gebruiker kiest voor "Liever zelf samenstellen":
   Presenteer 3-4 aanbevolen stijlen gebaseerd op website_type + "Anders (zelf specificeren)".
   Beschrijf elke stijl kort met zijn sfeer. Aanbevelingen per type:
   • ecommerce/marketplace → rounded (vriendelijk/modern), minimalist (schoon/gefocust), material (vertrouwd/consistent)

@@ -195,6 +195,50 @@ describe('security specialist', () => {
 });
 
 // ============================================
+// SEO specialist
+// ============================================
+
+describe('seo specialist', () => {
+	it('nodig bij landing websiteType', () => {
+		const specialists = detectRequiredSpecialists(
+			mockAnswers({ websiteType: 'landing' })
+		);
+		const seo = specialists.find((s) => s.id === 'seo');
+		expect(seo?.needed).toBe(true);
+	});
+
+	it('nodig bij ecommerce websiteType', () => {
+		const specialists = detectRequiredSpecialists(
+			mockAnswers({ websiteType: 'ecommerce' })
+		);
+		const seo = specialists.find((s) => s.id === 'seo');
+		expect(seo?.needed).toBe(true);
+	});
+
+	it('nodig bij blog_content websiteType', () => {
+		const specialists = detectRequiredSpecialists(
+			mockAnswers({ websiteType: 'blog_content' })
+		);
+		const seo = specialists.find((s) => s.id === 'seo');
+		expect(seo?.needed).toBe(true);
+	});
+
+	it('niet nodig bij dashboard_admin websiteType', () => {
+		const specialists = detectRequiredSpecialists(
+			mockAnswers({ websiteType: 'dashboard_admin' })
+		);
+		const seo = specialists.find((s) => s.id === 'seo');
+		expect(seo?.needed).toBe(false);
+	});
+
+	it('niet nodig als websiteType undefined is', () => {
+		const specialists = detectRequiredSpecialists(mockAnswers());
+		const seo = specialists.find((s) => s.id === 'seo');
+		expect(seo?.needed).toBe(false);
+	});
+});
+
+// ============================================
 // getActiveSpecialists
 // ============================================
 

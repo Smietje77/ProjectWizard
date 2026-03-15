@@ -27,7 +27,10 @@ export function hasEnoughProductStrategy(answers: WizardAnswers): boolean {
   return categoryCount >= 2;
 }
 
-export function generateProductVisionTemplate(answers: WizardAnswers): string {
+export function generateProductVisionTemplate(
+  answers: WizardAnswers,
+  options?: { hasGeneratedAssets?: boolean }
+): string {
   const sections: string[] = [];
 
   sections.push(`# Product Vision — ${answers.projectName}`);
@@ -93,6 +96,18 @@ export function generateProductVisionTemplate(answers: WizardAnswers): string {
     sections.push('');
     sections.push('> Tip: Gebruik "Experimental mode" in Stitch voor de beste resultaten.');
     sections.push('> Je kunt de gegenereerde designs exporteren naar Figma of als HTML/CSS.');
+    sections.push('');
+  }
+
+  // Visuele assets sectie (alleen als AI-assets gegenereerd zijn)
+  if (options?.hasGeneratedAssets) {
+    sections.push('## Visuele Assets (AI-gegenereerd)');
+    sections.push('');
+    sections.push('- `assets/mockup.png` — UI mockup van de hoofdpagina');
+    sections.push('- `assets/og-image.png` — Open Graph social media preview');
+    sections.push('- `assets/favicon.png` — Favicon concept');
+    sections.push('');
+    sections.push('> Startpunten — verfijn in een design tool of regenereer via Stitch.');
     sections.push('');
   }
 

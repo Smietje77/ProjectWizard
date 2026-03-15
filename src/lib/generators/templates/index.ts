@@ -19,7 +19,9 @@ export {
   generateTestingSkillTemplate,
   generateIntegrationSkillTemplate,
   generateDeploymentSkillTemplate,
-  generateSecuritySkillTemplate
+  generateSecuritySkillTemplate,
+  generateSeoSkillTemplate
 } from './skills';
 export { generateProductVisionTemplate, hasEnoughProductStrategy } from './product-vision';
 export { generateStitchPrompt } from './stitch-prompt';
+export { generateCodeRabbitConfig } from './coderabbit';

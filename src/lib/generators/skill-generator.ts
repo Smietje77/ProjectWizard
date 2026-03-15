@@ -11,6 +11,7 @@ import {
 	generateDeploymentSkillTemplate,
 	generateIntegrationSkillTemplate,
 	generateSecuritySkillTemplate,
+	generateSeoSkillTemplate,
 	getFrameworkConventions
 } from './templates';
 import { streamWithRetry } from '$lib/server/anthropic-client';
@@ -19,7 +20,8 @@ import {
 	TESTING_SKILL_PROMPT,
 	DEPLOYMENT_SKILL_PROMPT,
 	INTEGRATION_SKILL_PROMPT,
-	SECURITY_SKILL_PROMPT
+	SECURITY_SKILL_PROMPT,
+	SEO_SKILL_PROMPT
 } from '$lib/prompts/generator';
 
 // ─── Skill Categorieën (Skills 2.0) ────────────────────────────────────────
@@ -35,6 +37,7 @@ const SKILL_CATEGORIES: Record<string, SkillCategory> = {
 	security: 'capability_uplift',  // leert model compliance/security patronen
 	devops: 'workflow',             // vast deploymentproces, onafhankelijk van model
 	integration: 'workflow',        // vaste API client/MCP configuratie
+	seo: 'workflow',                // vast SEO proces, onafhankelijk van model
 };
 
 /**
@@ -95,7 +98,8 @@ const SKILL_PROMPTS: Record<string, string> = {
 	testing: TESTING_SKILL_PROMPT,
 	devops: DEPLOYMENT_SKILL_PROMPT,
 	integration: INTEGRATION_SKILL_PROMPT,
-	security: SECURITY_SKILL_PROMPT
+	security: SECURITY_SKILL_PROMPT,
+	seo: SEO_SKILL_PROMPT
 };
 
 /** Mapping van specialist id naar template fallback */
@@ -104,7 +108,8 @@ const SKILL_TEMPLATES: Record<string, (answers: WizardAnswers) => string> = {
 	testing: generateTestingSkillTemplate,
 	devops: generateDeploymentSkillTemplate,
 	integration: generateIntegrationSkillTemplate,
-	security: generateSecuritySkillTemplate
+	security: generateSecuritySkillTemplate,
+	seo: generateSeoSkillTemplate
 };
 
 /**

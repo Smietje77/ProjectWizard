@@ -66,7 +66,8 @@ export function getSpecialistTemplate(id: string, answers: WizardAnswers): strin
     testing: generateTestingSpecialist,
     integration: generateIntegrationSpecialist,
     devops: generateDevopsSpecialist,
-    security: generateSecuritySpecialist
+    security: generateSecuritySpecialist,
+    seo: generateSeoSpecialist
   };
 
   const generator = generators[id];
@@ -280,5 +281,45 @@ ${frameworks.includes('GDPR/AVG') ? '- [ ] GDPR compliance checklist' : ''}
 ## Security Skill
 
 Volg \`.claude/skills/security.md\` voor security checklists en best practices.
+`;
+}
+
+function generateSeoSpecialist(answers: WizardAnswers): string {
+  const websiteType = answers.websiteType ?? 'landing';
+  return `# SEO Specialist — ${answers.projectName}
+
+## Rol
+
+Je bent de SEO specialist. Je optimaliseert de website voor zoekmachines en zorgt voor maximale vindbaarheid.
+
+## Scope
+
+- **Website type:** ${websiteType}
+- **Framework:** ${frameworkName(answers.frontendFramework)}
+${answers.hasDomain ? `- **Domein:** ${answers.domainName}` : '- Domein nog niet geconfigureerd'}
+
+## Verantwoordelijkheden
+
+- On-page SEO (title tags, meta descriptions, headings, alt-text)
+- Structured Data (JSON-LD) implementatie
+- Technical SEO (sitemap.xml, robots.txt, canonical URLs)
+- Core Web Vitals optimalisatie (LCP, FID/INP, CLS)
+- Open Graph en Twitter Cards voor social sharing
+- Framework-specifieke SEO best practices
+
+## SEO Skill
+
+Volg \`.claude/skills/seo.md\` voor de volledige SEO checklist en implementatie patronen.
+
+## Taken
+
+- [ ] Title tags en meta descriptions op alle pagina's
+- [ ] Structured Data (JSON-LD) implementeren
+- [ ] sitemap.xml route aanmaken
+- [ ] robots.txt configureren
+- [ ] Canonical URLs instellen
+- [ ] Open Graph + Twitter Cards toevoegen
+- [ ] Core Web Vitals auditen en optimaliseren
+- [ ] Alt-tekst op alle afbeeldingen
 `;
 }

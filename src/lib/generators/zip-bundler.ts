@@ -17,7 +17,8 @@ import {
   getSkillTemplate,
   generateProductVisionTemplate,
   hasEnoughProductStrategy,
-  generateStitchPrompt
+  generateStitchPrompt,
+  generateCodeRabbitConfig
 } from './templates';
 
 interface BundleOptions {
@@ -144,6 +145,9 @@ export async function generateProjectBundle(
 
     // TEAM.md — Agent Team configuratie
     projectFolder.file('TEAM.md', generateTeamMd(answers));
+
+    // .coderabbit.yaml — AI code review configuratie
+    projectFolder.file('.coderabbit.yaml', generateCodeRabbitConfig(answers));
 
     // Agents folder — dynamisch op basis van specialist-detectie
     const agentsFolder = projectFolder.folder('agents');

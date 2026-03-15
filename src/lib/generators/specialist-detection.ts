@@ -13,6 +13,13 @@ export interface DetectedSpecialist {
 	skillNeeded: boolean;
 }
 
+// Website types die SEO specialist triggeren (publieke websites)
+const PUBLIC_WEBSITE_TYPES = ['landing', 'ecommerce', 'marketplace', 'portfolio', 'blog_content', 'community'];
+
+function detectSeoNeeded(answers: WizardAnswers): boolean {
+	return !!answers.websiteType && PUBLIC_WEBSITE_TYPES.includes(answers.websiteType);
+}
+
 // Keywords die security specialist triggeren
 const SECURITY_KEYWORDS = ['compliance', 'security', 'audit', 'nis2', 'gdpr', 'iso', 'privacy', 'hipaa', 'soc2', 'pentest'];
 
@@ -89,6 +96,15 @@ export function detectRequiredSpecialists(answers: WizardAnswers): DetectedSpeci
 			agentFile: 'agents/specialists/security.md',
 			skillFile: '.claude/skills/security.md',
 			skillNeeded: detectSecurityNeeded(answers)
+		},
+		{
+			id: 'seo',
+			name: 'SEO Specialist',
+			needed: detectSeoNeeded(answers),
+			reason: `Website type: ${answers.websiteType ?? 'n.v.t.'}`,
+			agentFile: 'agents/specialists/seo.md',
+			skillFile: '.claude/skills/seo.md',
+			skillNeeded: detectSeoNeeded(answers)
 		}
 	];
 }

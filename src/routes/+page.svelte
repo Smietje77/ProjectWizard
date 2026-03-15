@@ -272,7 +272,11 @@
 			const folder = zip.folder(safeName);
 			if (!folder) return;
 			for (const file of output.files) {
-				folder.file(file.path, file.content);
+				if (file.binary) {
+					folder.file(file.path, file.content, { base64: true });
+				} else {
+					folder.file(file.path, file.content);
+				}
 			}
 			const blob = await zip.generateAsync({
 				type: 'blob',

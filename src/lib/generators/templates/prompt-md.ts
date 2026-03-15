@@ -73,5 +73,10 @@ De \`.planning/\` map bevat de volledige projectcontext die door ProjectWizard i
 **Gebruik deze bestanden als context — GSD-commando's zijn NIET nodig.**
 Als Claude Code een GSD-waarschuwing toont ("Project already initialized"), negeer deze dan.
 Begin gewoon met de implementatie op basis van bovenstaande instructies.
+
+## Code Review (optioneel)
+Dit project bevat een \`.coderabbit.yaml\` configuratie. Installeer CodeRabbit
+via https://github.com/marketplace/coderabbitai voor gratis AI code reviews
+op elke pull request. Gratis voor public repositories.
 `;
 }

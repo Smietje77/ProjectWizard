@@ -13,6 +13,7 @@ import {
   INDUSTRY_PALETTES,
   UI_STYLES
 } from '$lib/data/design-tokens';
+import { getDesignPreset } from '$lib/data/design-presets';
 import { dbName, authName, uiLibName, entitiesList, servicesList } from './utils';
 import { getStripeConfig, generateStripeSection } from './stripe';
 
@@ -25,7 +26,8 @@ export function getSkillTemplate(id: string, answers: WizardAnswers): string {
     testing: generateTestingSkillTemplate,
     integration: generateIntegrationSkillTemplate,
     deployment: generateDeploymentSkillTemplate,
-    security: generateSecuritySkillTemplate
+    security: generateSecuritySkillTemplate,
+    seo: generateSeoSkillTemplate
   };
 
   const generator = generators[id];
@@ -38,6 +40,14 @@ export function getSkillTemplate(id: string, answers: WizardAnswers): string {
 // ─── Design Skill Template (ook standalone export) ─────────────────────────
 
 export function generateDesignSkillTemplate(answers: WizardAnswers): string {
+  // Design preset shortcut — gebruik exacte preset tokens
+  if (answers.designPreset) {
+    const preset = getDesignPreset(answers.designPreset);
+    if (preset) {
+      return generatePresetDesignSkill(answers, preset);
+    }
+  }
+
   const screenshotColors = (answers.screenshotAnalysis?.[0]?.analysis as Record<string, unknown> | undefined)
     ?.colors as Record<string, string> | undefined;
   const screenshotTypo = (answers.screenshotAnalysis?.[0]?.analysis as Record<string, unknown> | undefined)
@@ -299,6 +309,106 @@ ${uxGuidelines.colorRule}
 ### Layout
 ${uxGuidelines.layoutTip}
 ` : ''}
+`;
+}
+
+// ─── Design Preset Helper ─────────────────────────────────────────────────
+
+function generatePresetDesignSkill(answers: WizardAnswers, preset: import('$lib/data/design-presets').DesignPreset): string {
+  const componentClasses = preset.style.componentStyle === 'glassmorphism'
+    ? `card:   backdrop-blur-xl bg-white/5 border border-white/10 rounded-[${preset.style.borderRadius}] shadow-[${preset.style.shadow}]
+button: backdrop-blur-sm bg-primary/90 hover:bg-primary text-black font-medium rounded-[${preset.style.borderRadius}] px-6 py-2.5 transition-all
+input:  bg-white/5 border border-white/10 rounded-[${preset.style.borderRadius}] backdrop-blur-sm focus:border-primary/50 focus:ring-1 focus:ring-primary/30`
+    : `card:   bg-surface border border-border rounded-[${preset.style.borderRadius}] shadow-[${preset.style.shadow}]
+button: bg-primary hover:bg-primary/90 text-white font-medium rounded-[${preset.style.borderRadius}] px-6 py-2.5 transition-colors
+input:  bg-background border border-border rounded-[${preset.style.borderRadius}] focus:border-primary focus:ring-1 focus:ring-primary/30`;
+
+  return `# Design Skill — ${answers.projectName}
+
+> Design Preset: **${preset.name}** — ${preset.description}
+
+## Design Systeem
+
+| Eigenschap | Waarde |
+|---|---|
+| Preset | ${preset.name} |
+| Theme | ${preset.theme} |
+| Component Style | ${preset.style.componentStyle} |
+| Heading Font | ${preset.fonts.heading} |
+| Body Font | ${preset.fonts.body} |
+| UI Library | ${uiLibName(answers.uiLibrary)} |
+
+---
+
+## CSS Custom Properties
+
+Voeg toe aan \`src/app.css\` of \`globals.css\`:
+
+\`\`\`css
+${preset.cssVariables}
+\`\`\`
+${preset.style.componentStyle === 'glassmorphism' ? `
+> **Glassmorphism**: voeg een gradient achtergrond toe aan de pagina:
+> \`bg-gradient-to-br from-[#0a0a0a] via-[#1a1a2e] to-[#0a0a0a]\`
+> De \`backdrop-blur\` effecten zijn alleen zichtbaar op een donkere/gekleurde ondergrond.
+` : ''}
+---
+
+## Tailwind Config
+
+Voeg toe aan \`tailwind.config.js\` → \`theme.extend\`:
+
+\`\`\`js
+${preset.tailwindExtend}
+\`\`\`
+
+---
+
+## Component Tailwind Classes (${preset.style.componentStyle})
+
+\`\`\`
+${componentClasses}
+\`\`\`
+
+- **Spacing:** 4px/8px grid systeem (Tailwind \`p-2\`, \`p-4\`, \`gap-4\`, \`gap-8\`)
+- **Transitions:** \`transition-all duration-200\` voor hover, \`duration-300\` voor state changes
+
+---
+
+## Typografie
+
+| Rol | Font | Tailwind klasse |
+|---|---|---|
+| Koppen | ${preset.fonts.heading} | \`font-display\` |
+| Broodtekst | ${preset.fonts.body} | \`font-sans\` |
+| Code | ${preset.fonts.mono} | \`font-mono\` |
+
+### Typografie-schaal
+
+\`\`\`
+h1: text-4xl font-bold tracking-tight
+h2: text-3xl font-semibold
+h3: text-2xl font-semibold
+h4: text-xl font-medium
+body: text-base leading-relaxed
+small: text-sm text-muted
+\`\`\`
+
+---
+
+## Quick Start
+
+1. **Fonts laden** — voeg toe aan \`<head>\` in \`app.html\` of layout:
+   \`\`\`html
+   <link rel="preconnect" href="https://fonts.googleapis.com">
+   <link href="${preset.fonts.googleFontsUrl}" rel="stylesheet">
+   \`\`\`
+
+2. **CSS variabelen** — plak het \`:root { ... }\` blok bovenaan \`src/app.css\`
+
+3. **Tailwind config** — voeg het \`theme.extend\` blok toe aan \`tailwind.config.js\`
+
+Daarna kun je direct Tailwind-classes als \`text-primary\`, \`bg-surface\`, \`border-border\` gebruiken.
 `;
 }
 
@@ -617,5 +727,245 @@ ${hasNIS2 ? `## NIS2 Compliance
 - **SAST:** ESLint security plugin
 - **Headers check:** securityheaders.com
 - **SSL check:** ssllabs.com
+`;
+}
+
+// ─── SEO Skill Template ─────────────────────────────────────────────────
+
+export function generateSeoSkillTemplate(answers: WizardAnswers): string {
+  const fw = answers.frontendFramework;
+  const websiteType = answers.websiteType ?? 'landing';
+
+  // Schema types per websiteType
+  const schemaMap: Record<string, string[]> = {
+    ecommerce: ['Product', 'Offer', 'AggregateRating', 'BreadcrumbList', 'Organization'],
+    marketplace: ['Product', 'Offer', 'AggregateRating', 'BreadcrumbList', 'Organization'],
+    blog_content: ['Article', 'BlogPosting', 'BreadcrumbList', 'Organization', 'Person'],
+    portfolio: ['Person', 'CreativeWork', 'BreadcrumbList', 'Organization'],
+    landing: ['Organization', 'WebSite', 'BreadcrumbList', 'FAQPage'],
+    community: ['Organization', 'WebSite', 'BreadcrumbList', 'DiscussionForumPosting']
+  };
+  const schemas = schemaMap[websiteType] ?? schemaMap['landing'];
+
+  // Framework-specifieke head management
+  const frameworkHead = fw === 'sveltekit'
+    ? `### SvelteKit
+
+\`\`\`svelte
+<!-- +page.svelte -->
+<svelte:head>
+  <title>{pageTitle} — ${answers.projectName}</title>
+  <meta name="description" content={pageDescription} />
+  <link rel="canonical" href={canonicalUrl} />
+  <meta property="og:title" content={pageTitle} />
+  <meta property="og:description" content={pageDescription} />
+  <meta property="og:url" content={canonicalUrl} />
+  <meta property="og:image" content={ogImage} />
+  <meta name="twitter:card" content="summary_large_image" />
+</svelte:head>
+\`\`\`
+
+- Gebruik \`+page.ts\` load functies voor dynamische meta data
+- Overweeg \`prerender = true\` voor statische pagina's
+- Sitemap via \`+server.ts\` in \`/sitemap.xml\` route`
+    : fw === 'nextjs'
+    ? `### Next.js
+
+\`\`\`typescript
+// app/page.tsx
+export const metadata: Metadata = {
+  title: 'Paginatitel — ${answers.projectName}',
+  description: 'Pagina beschrijving',
+  openGraph: {
+    title: 'Paginatitel',
+    description: 'Beschrijving',
+    url: 'https://example.com/pagina',
+    images: ['/og-image.png'],
+  },
+};
+
+// Dynamisch:
+export async function generateMetadata({ params }): Promise<Metadata> { ... }
+\`\`\`
+
+- Gebruik \`generateStaticParams\` voor statische pagina's
+- Sitemap via \`app/sitemap.ts\` export`
+    : `### Nuxt
+
+\`\`\`typescript
+// pages/index.vue
+useHead({
+  title: 'Paginatitel — ${answers.projectName}',
+  meta: [
+    { name: 'description', content: 'Pagina beschrijving' },
+  ],
+});
+
+useSeoMeta({
+  ogTitle: 'Paginatitel',
+  ogDescription: 'Beschrijving',
+  ogImage: '/og-image.png',
+  twitterCard: 'summary_large_image',
+});
+\`\`\`
+
+- Gebruik \`definePageMeta\` voor route-level configuratie
+- Sitemap via \`@nuxtjs/sitemap\` module`;
+
+  return `# SEO Skill — ${answers.projectName}
+
+## Website Type: ${websiteType}
+
+---
+
+## On-Page SEO Checklist
+
+### Title Tags
+- Uniek per pagina, max 60 karakters
+- Format: \`{Paginatitel} — ${answers.projectName}\`
+- Primair keyword vooraan
+
+### Meta Description
+- Uniek per pagina, max 155 karakters
+- Bevat primair keyword en call-to-action
+- Beschrijft de pagina-inhoud duidelijk
+
+### Headings
+- Eén \`<h1>\` per pagina (bevat primair keyword)
+- Logische hiërarchie: h1 → h2 → h3
+- Geen heading levels overslaan
+
+### Afbeeldingen
+- Alt-tekst op alle \`<img>\` tags (beschrijvend, met keyword waar relevant)
+- Lazy loading: \`loading="lazy"\` op afbeeldingen below the fold
+- WebP/AVIF formaat met \`<picture>\` fallback
+- Compressed: max 200KB per afbeelding
+
+### URL Structuur
+- Korte, beschrijvende slugs: \`/producten/handgemaakte-ring\`
+- Geen underscores, geen hoofdletters
+- Geen diepte > 3 niveaus waar mogelijk
+
+---
+
+## Structured Data (JSON-LD)
+
+### Verplichte Schema Types
+
+${schemas.map(s => `- \`${s}\``).join('\n')}
+
+### Implementatie
+
+\`\`\`html
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "${schemas[0]}",
+  "name": "${answers.projectName}",
+  "url": "https://example.com"
+}
+</script>
+\`\`\`
+
+${websiteType === 'ecommerce' || websiteType === 'marketplace' ? `### Product Schema (verplicht voor producten)
+
+\`\`\`json
+{
+  "@context": "https://schema.org",
+  "@type": "Product",
+  "name": "Productnaam",
+  "description": "Beschrijving",
+  "image": "https://example.com/product.webp",
+  "offers": {
+    "@type": "Offer",
+    "price": "29.95",
+    "priceCurrency": "EUR",
+    "availability": "https://schema.org/InStock"
+  }
+}
+\`\`\`` : websiteType === 'blog_content' ? `### Article Schema (verplicht voor artikelen)
+
+\`\`\`json
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "Artikel titel",
+  "author": { "@type": "Person", "name": "Auteur" },
+  "datePublished": "2025-01-01",
+  "image": "https://example.com/header.webp"
+}
+\`\`\`` : `### Organization Schema
+
+\`\`\`json
+{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "${answers.projectName}",
+  "url": "https://example.com",
+  "logo": "https://example.com/logo.png"
+}
+\`\`\``}
+
+Valideer met: https://search.google.com/test/rich-results
+
+---
+
+## Technical SEO
+
+### sitemap.xml
+- Genereer automatisch vanuit routes
+- Includer alleen canonieke, indexeerbare pagina's
+- Update \`<lastmod>\` bij content wijzigingen
+- Submit via Google Search Console
+
+### robots.txt
+\`\`\`
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /login
+Sitemap: https://example.com/sitemap.xml
+\`\`\`
+
+### Canonical URLs
+- Elke pagina heeft een \`<link rel="canonical">\`
+- Voorkom duplicate content (www vs non-www, trailing slashes)
+- Canonicals zijn altijd absolute URLs
+
+### Open Graph + Twitter Cards
+- \`og:title\`, \`og:description\`, \`og:image\`, \`og:url\` op elke pagina
+- \`og:image\`: minimaal 1200x630px
+- \`twitter:card\`: \`summary_large_image\`
+- Test met: https://developers.facebook.com/tools/debug/
+
+---
+
+## Core Web Vitals
+
+| Metric | Target | Wat het meet |
+|---|---|---|
+| LCP | < 2.5s | Laadtijd grootste element |
+| FID/INP | < 100ms | Interactiviteit |
+| CLS | < 0.1 | Visuele stabiliteit |
+
+### Optimalisatie Tips
+- **LCP**: Preload hero images, gebruik \`fetchpriority="high"\`, optimaliseer server response
+- **FID/INP**: Minimaliseer JavaScript, gebruik web workers voor zware taken
+- **CLS**: Stel afmetingen in op \`<img>\`/\`<video>\`, vermijd dynamic content insertion above the fold
+
+---
+
+## Framework-specifieke SEO
+
+${frameworkHead}
+
+---
+
+## SEO Monitoring
+
+- **Google Search Console**: indexering, performance, errors
+- **Lighthouse**: audits voor performance, accessibility, SEO
+- **PageSpeed Insights**: Core Web Vitals meting
+- Schema validatie: rich results test
 `;
 }

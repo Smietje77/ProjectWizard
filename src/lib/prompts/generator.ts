@@ -325,3 +325,32 @@ BELANGRIJK:
 - Concrete code, geen checklists
 
 Schrijf in markdown formaat. Begin met een frontmatter block.`;
+
+export const SEO_SKILL_PROMPT = `Je genereert een SEO skill (.claude/skills/seo.md) voor Claude Code.
+
+Analyseer de wizard antwoorden over website type, framework en deployment.
+Genereer een concrete SEO skill die specifiek is voor het type website.
+
+De skill MOET bevatten:
+1. On-Page SEO — title tags, meta descriptions, heading structuur, alt-tekst, URL structuur
+2. Structured Data (JSON-LD) — schema types relevant voor het website type:
+   - E-commerce/Marketplace: Product, Offer, AggregateRating, BreadcrumbList
+   - Blog/Content: Article, BlogPosting, Person, BreadcrumbList
+   - Portfolio: Person, CreativeWork, BreadcrumbList
+   - Landing: Organization, WebSite, FAQPage
+   - Community: DiscussionForumPosting, Organization
+3. Technical SEO — sitemap.xml generatie, robots.txt, canonical URLs
+4. Social Sharing — Open Graph tags, Twitter Cards met concrete meta tags
+5. Core Web Vitals — LCP < 2.5s, FID < 100ms, CLS < 0.1 targets met optimalisatie tips
+6. Framework-specifieke implementatie:
+   - SvelteKit: svelte:head, +page.ts load, prerender
+   - Next.js: metadata export, generateMetadata, generateStaticParams
+   - Nuxt: useHead, useSeoMeta, @nuxtjs/sitemap
+
+BELANGRIJK:
+- Concrete code voorbeelden per framework
+- JSON-LD voorbeelden met de juiste schema types
+- Geen vage richtlijnen — exacte implementatie patronen
+- Vermeld validatie tools (Rich Results Test, PageSpeed Insights)
+
+Schrijf in markdown formaat. Begin met een frontmatter block.`;
