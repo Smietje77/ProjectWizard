@@ -7,7 +7,12 @@ import { createWithRetry } from '$lib/server/anthropic-client';
 import { DESIGN_ANALYSIS_PROMPT } from '$lib/prompts/design';
 
 export const POST: RequestHandler = async ({ request }) => {
-	const body = await request.json();
+	let body: unknown;
+	try {
+		body = await request.json();
+	} catch {
+		return json({ error: 'Ongeldig JSON in request body.' }, { status: 400 });
+	}
 	const validation = validateRequest(analyzeScreenshotSchema, body);
 	if (!validation.valid) return validation.error;
 
@@ -20,6 +25,11 @@ export const POST: RequestHandler = async ({ request }) => {
 	}
 
 	const [, mediaType, base64Data] = match;
+
+	// Grootte limiet: ~7.5MB decoded (10MB base64)
+	if (base64Data.length > 10_000_000) {
+		return json({ error: 'Afbeelding te groot (max 7.5MB).' }, { status: 413 });
+	}
 
 	// Magic bytes validatie: controleer dat de base64 data overeenkomt met het MIME type
 	const magicBytesValid = validateMagicBytes(base64Data, mediaType);
@@ -54,7 +64,7 @@ export const POST: RequestHandler = async ({ request }) => {
 					]
 				}
 			]
-		});
+		}, { timeoutMs: 30_000 });
 
 		const content = message.content[0];
 		if (content.type !== 'text') {

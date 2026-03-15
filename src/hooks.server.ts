@@ -33,7 +33,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 			});
 		}
 		// Pagina routes: redirect naar login met return URL
-		const redirectTo = encodeURIComponent(event.url.pathname);
+		const redirectTo = encodeURIComponent(event.url.pathname + event.url.search);
 		throw redirect(303, `/login?redirectTo=${redirectTo}`);
 	}
 
@@ -81,6 +81,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	response.headers.set('X-Content-Type-Options', 'nosniff');
 	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
 	response.headers.set('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+	response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
 
 	return response;
 };

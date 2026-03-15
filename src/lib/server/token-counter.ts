@@ -3,14 +3,27 @@
 
 import { encodingForModel } from 'js-tiktoken';
 
-const encoder = encodingForModel('gpt-4o'); // cl200k_base, dichtst bij Claude's tokenizer
+let _encoder: ReturnType<typeof encodingForModel> | null = null;
+
+function getEncoder() {
+	if (!_encoder) {
+		try {
+			_encoder = encodingForModel('gpt-4o');
+		} catch {
+			return null;
+		}
+	}
+	return _encoder;
+}
 
 /**
  * Tel het aantal tokens in een tekst.
  */
 export function countTokens(text: string): number {
 	if (!text) return 0;
-	return encoder.encode(text).length;
+	const enc = getEncoder();
+	if (!enc) return Math.ceil(text.length / 4); // rough fallback
+	return enc.encode(text).length;
 }
 
 /**

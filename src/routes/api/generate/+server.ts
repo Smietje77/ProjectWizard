@@ -468,17 +468,16 @@ function slugify(text: string): string {
 // ─── Endpoint ────────────────────────────────────────────────────────────────
 
 export const POST: RequestHandler = async ({ request, locals }) => {
-	const body = await request.json();
+	let body: unknown;
+	try {
+		body = await request.json();
+	} catch {
+		return json({ error: 'Ongeldig JSON in request body.' }, { status: 400 });
+	}
 	const validation = validateRequest(generateRequestSchema, body);
 	if (!validation.valid) return validation.error;
 
 	const { projectName, description, answers, stream: useStream, format } = validation.data;
-
-	const safeName = projectName
-		.toLowerCase()
-		.replace(/[^a-z0-9\-_]/g, '-')
-		.replace(/-+/g, '-')
-		.replace(/^-|-$/g, '');
 
 	// GSD ZIP/preview modes
 	if (format === 'preview' || format === 'zip-full' || format === 'zip-planning') {
@@ -598,7 +597,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		});
 
 		// Audit logging (fire-and-forget)
-		const aiFiles = files.filter(f => f.source === 'ai').map(f => f.path);
+		const aiFiles = files.filter(f => f.source === 'ai' || f.source === 'ai-gemini').map(f => f.path);
 		const templateFiles = files.filter(f => f.source === 'template').map(f => f.path);
 		logAuditEvent(locals.supabase, {
 			userId: locals.user?.id,

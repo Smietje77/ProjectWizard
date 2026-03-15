@@ -427,7 +427,7 @@ function extractDataEntities(answers: WizardAnswer[]): DataEntity[] {
 	for (const pattern of entityPatterns) {
 		if (text.includes(pattern)) {
 			// Gebruik verrijkte veld-templates als die bestaan (FIX 5)
-			const fields = ENTITY_FIELD_TEMPLATES[pattern] || ['id', 'created_at', 'updated_at'];
+			const fields = [...(ENTITY_FIELD_TEMPLATES[pattern] ?? ['id', 'created_at', 'updated_at'])];
 			entities.push({
 				name: pattern.charAt(0).toUpperCase() + pattern.slice(1),
 				fields,
@@ -453,7 +453,7 @@ function extractDataEntities(answers: WizardAnswer[]): DataEntity[] {
 	if (authMethod !== 'none' && !entities.some((e) => e.name.toLowerCase().includes('user'))) {
 		entities.unshift({
 			name: 'Users',
-			fields: ENTITY_FIELD_TEMPLATES['users'],
+			fields: [...ENTITY_FIELD_TEMPLATES['users']],
 			relations: []
 		});
 	}
@@ -826,7 +826,7 @@ function extractConfirmedEffects(answers: WizardAnswer[]): ConfirmedEffects | nu
 // ============================================
 
 function detectRevenueModel(answers: WizardAnswer[]): string | undefined {
-	return detectEnum<string>(
+	const result = detectEnum<string>(
 		answers,
 		{
 			subscription: ['abonnement', 'subscription', 'maandelijks', 'jaarlijks'],
@@ -835,8 +835,9 @@ function detectRevenueModel(answers: WizardAnswer[]): string | undefined {
 			marketplace: ['marketplace', 'commissie', 'transactiefee'],
 			free: ['gratis', 'free', 'open source', 'geen verdienmodel']
 		},
-		undefined as unknown as string
-	) || undefined;
+		''
+	);
+	return result || undefined;
 }
 
 // ============================================

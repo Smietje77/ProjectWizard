@@ -232,7 +232,7 @@ class WizardStore {
 			currentStep: this.currentStep,
 			timestamp: Date.now()
 		};
-		this.snapshots = [...this.snapshots.slice(-(MAX_SNAPSHOTS - 1)), snapshot];
+		this.snapshots = [...this.snapshots, snapshot].slice(-MAX_SNAPSHOTS);
 	}
 
 	// Herstel state naar een eerder snapshot

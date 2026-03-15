@@ -9,7 +9,7 @@ interface RateEntry {
 const store = new Map<string, RateEntry>();
 
 // Opruimen van verlopen entries elke 5 minuten
-setInterval(() => {
+export const cleanupInterval = setInterval(() => {
 	const now = Date.now();
 	for (const [key, entry] of store) {
 		if (now > entry.resetAt) store.delete(key);

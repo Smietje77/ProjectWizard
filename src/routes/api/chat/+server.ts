@@ -24,7 +24,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	const log = createLogger(locals.requestId);
 	const startTime = Date.now();
 
-	const body = await request.json();
+	let body: unknown;
+	try {
+		body = await request.json();
+	} catch {
+		return json({ error: 'Ongeldig JSON in request body.' }, { status: 400 });
+	}
 	const validation = validateRequest(chatRequestSchema, body);
 	if (!validation.valid) return validation.error;
 

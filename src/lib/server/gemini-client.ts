@@ -39,7 +39,10 @@ export async function generateWithGemini(
 			model: 'gemini-2.5-flash',
 			...(systemInstruction ? { systemInstruction } : {})
 		});
-		const result = await model.generateContent(prompt);
+		const timeoutPromise = new Promise<never>((_, reject) =>
+			setTimeout(() => reject(new Error('Gemini text timeout')), 30_000)
+		);
+		const result = await Promise.race([model.generateContent(prompt), timeoutPromise]);
 		return result.response.text();
 	} catch (error) {
 		console.error('Gemini generatie fout:', error);
@@ -63,10 +66,10 @@ export async function generateImageWithGemini(
 		const timeout = setTimeout(() => controller.abort(), 30_000);
 
 		const res = await fetch(
-			`${GEMINI_API_BASE}/models/gemini-2.5-flash-preview-image-generation:generateContent?key=${key}`,
+			`${GEMINI_API_BASE}/models/gemini-2.5-flash-preview-image-generation:generateContent`,
 			{
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
 				signal: controller.signal,
 				body: JSON.stringify({
 					contents: [{ parts: [{ text: prompt }] }],

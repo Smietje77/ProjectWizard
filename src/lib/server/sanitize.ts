@@ -54,7 +54,7 @@ export function sanitizePromptInput(
 
 	// 3. Escape XML-achtige tags die Claude's parsing kunnen verwarren
 	// Specifiek: <system>, <human>, <assistant>, <tool>, <function>
-	result = result.replace(/<\/?(?:system|human|assistant|tool|function)(?:\s[^>]*)?>/gi, (match) => {
+	result = result.replace(/<\/?(?:system|human|assistant|tool|function|prompt|context|user|input|document|source)(?:\s[^>]*)?>/gi, (match) => {
 		modified = true;
 		return match.replace(/</g, '&lt;').replace(/>/g, '&gt;');
 	});

@@ -39,6 +39,9 @@ function detectSecurityNeeded(answers: WizardAnswers): boolean {
  * Gebruikt door: team-generator.ts, zip-bundler.ts, +server.ts
  */
 export function detectRequiredSpecialists(answers: WizardAnswers): DetectedSpecialist[] {
+	const securityNeeded = detectSecurityNeeded(answers);
+	const seoNeeded = detectSeoNeeded(answers);
+
 	return [
 		// Altijd aanwezig
 		{
@@ -91,20 +94,20 @@ export function detectRequiredSpecialists(answers: WizardAnswers): DetectedSpeci
 		{
 			id: 'security',
 			name: 'Security Specialist',
-			needed: detectSecurityNeeded(answers),
+			needed: securityNeeded,
 			reason: 'Compliance/security keywords gedetecteerd',
 			agentFile: 'agents/specialists/security.md',
 			skillFile: '.claude/skills/security.md',
-			skillNeeded: detectSecurityNeeded(answers)
+			skillNeeded: securityNeeded
 		},
 		{
 			id: 'seo',
 			name: 'SEO Specialist',
-			needed: detectSeoNeeded(answers),
+			needed: seoNeeded,
 			reason: `Website type: ${answers.websiteType ?? 'n.v.t.'}`,
 			agentFile: 'agents/specialists/seo.md',
 			skillFile: '.claude/skills/seo.md',
-			skillNeeded: detectSeoNeeded(answers)
+			skillNeeded: seoNeeded
 		}
 	];
 }
