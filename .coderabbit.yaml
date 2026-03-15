@@ -1,0 +1,68 @@
+# CodeRabbit AI Code Review Configuration
+# Docs: https://docs.coderabbit.ai/configuration
+
+language: nl-NL
+
+reviews:
+  # Review elke PR automatisch
+  auto_review:
+    enabled: true
+    # Negeer draft PRs
+    drafts: false
+    # Review ook grote PRs
+    base_branches:
+      - main
+
+  # Profiel: chill = minder streng, assertive = strenger
+  profile: chill
+
+  # High-level samenvatting bovenaan elke review
+  request_changes_workflow: false
+  
+  # Pad-gebaseerde instructies
+  path_instructions:
+    - path: "src/lib/generators/**"
+      instructions: |
+        Focus op: correcte WizardAnswers type usage, conditionele velden (optioneel),
+        template output kwaliteit (geen lege secties, geen placeholder tekst).
+    - path: "src/routes/api/**"
+      instructions: |
+        Focus op: error handling, rate limiting compliance, Zod validatie,
+        geen secrets in responses, correcte HTTP status codes.
+    - path: "src/lib/server/**"
+      instructions: |
+        Focus op: null-safety voor optionele API keys (GEMINI_API_KEY),
+        graceful fallbacks, geen crashes bij externe API fouten.
+    - path: "src/lib/stores/**"
+      instructions: |
+        Focus op: Svelte 5 runes correctheid ($state, $derived, $effect),
+        memory leaks (setTimeout cleanup), reactivity.
+    - path: "src/lib/prompts/**"
+      instructions: |
+        Focus op: prompt injection risico's, Nederlandse taal kwaliteit,
+        geen hardcoded opties (dynamische suggesties patroon).
+    - path: "**/*.test.ts"
+      instructions: |
+        Focus op: test coverage van edge cases, mock correctheid,
+        geen flaky tests (geen timing-afhankelijke assertions).
+
+  # Tools configuratie
+  tools:
+    # Gebruik biome/eslint als die geconfigureerd zijn
+    eslint:
+      enabled: true
+    biome:
+      enabled: false
+
+chat:
+  # Sta toe om @coderabbitai te taggen in PR comments
+  auto_reply: true
+
+# Bestanden die NIET gereviewd hoeven te worden
+path_filters:
+  - "!package-lock.json"
+  - "!uv.lock"
+  - "!**/*.snap"
+  - "!static/**"
+  - "!.planning/**"
+  - "!supabase/migrations/**"
