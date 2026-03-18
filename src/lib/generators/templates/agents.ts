@@ -104,7 +104,7 @@ Je bent de frontend developer. Je bouwt de UI met **${fw}** en **${uiLibName(ans
 
 ## Design Skill
 
-Volg \`.claude/skills/design.md\` voor design tokens, kleuren en component styling.
+Volg \`.claude/skills/design-system/SKILL.md\` voor design tokens, kleuren en component styling.
 
 ## Taken
 
@@ -140,7 +140,7 @@ ${entitiesList(answers)}
 
 ## Backend Skill
 
-Volg \`.claude/skills/backend.md\` voor API conventies en database patterns.
+Volg \`.claude/skills/backend-patterns/SKILL.md\` voor API conventies en database patterns.
 
 ## Taken
 
@@ -173,7 +173,7 @@ ${answers.criticalFlows.length > 0 ? answers.criticalFlows.map(f => `- ${f}`).jo
 
 ## Testing Skill
 
-Volg \`.claude/skills/testing.md\` voor test patterns en best practices.
+Volg \`.claude/skills/testing-strategy/SKILL.md\` voor test patterns en best practices.
 `;
 }
 
@@ -204,7 +204,7 @@ Zie \`.mcp.json\` voor de volledige configuratie.
 
 ## Integration Skill
 
-Volg \`.claude/skills/integration.md\` voor API client patterns.
+Volg \`.claude/skills/external-services/SKILL.md\` voor API client patterns.
 `;
 }
 
@@ -236,7 +236,7 @@ ${answers.hasDomain ? `- DNS configuratie voor ${answers.domainName}` : ''}`}
 
 ## Deployment Skill
 
-Volg \`.claude/skills/deployment.md\` voor deployment best practices.
+Volg \`.claude/skills/deployment-config/SKILL.md\` voor deployment best practices.
 `;
 }
 
@@ -280,7 +280,7 @@ ${frameworks.includes('GDPR/AVG') ? '- [ ] GDPR compliance checklist' : ''}
 
 ## Security Skill
 
-Volg \`.claude/skills/security.md\` voor security checklists en best practices.
+Volg \`.claude/skills/security-checklist/SKILL.md\` voor security checklists en best practices.
 `;
 }
 
@@ -309,7 +309,7 @@ ${answers.hasDomain ? `- **Domein:** ${answers.domainName}` : '- Domein nog niet
 
 ## SEO Skill
 
-Volg \`.claude/skills/seo.md\` voor de volledige SEO checklist en implementatie patronen.
+Volg \`.claude/skills/seo-optimization/SKILL.md\` voor de volledige SEO checklist en implementatie patronen.
 
 ## Taken
 

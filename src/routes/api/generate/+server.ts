@@ -16,7 +16,8 @@ import {
 	generateProductVisionTemplate,
 	hasEnoughProductStrategy,
 	generateStitchPrompt,
-	generateCodeRabbitConfig
+	generateCodeRabbitConfig,
+	generateUsingSuperpowersSkill
 } from '$lib/generators/templates';
 import { getActiveSpecialists } from '$lib/generators/specialist-detection';
 import { generateSkills } from '$lib/generators/skill-generator';
@@ -372,13 +373,20 @@ async function generateAllFiles(opts: GenerateOptions): Promise<GeneratedFile[]>
 		const designSkill = await generateEnrichedDesignSkill(
 			answersContext, structuredContext, answers, gsdAnswers
 		);
-		files.push({ path: '.claude/skills/design.md', ...designSkill });
+		files.push({ path: '.claude/skills/design-system/SKILL.md', ...designSkill });
 	}
 
 	// Overige skills
 	onProgress?.('Project skills genereren...', 88);
 	const skillFiles = await generateSkills(specialists, answers, gsdAnswers);
 	files.push(...skillFiles.map(f => ({ ...f, source: 'ai' as FileSource })));
+
+	// Using-superpowers intro skill (altijd)
+	files.push({
+		path: '.claude/skills/using-superpowers/SKILL.md',
+		content: generateUsingSuperpowersSkill(gsdAnswers),
+		source: 'template'
+	});
 
 	// Visuele assets via Gemini Image (optioneel)
 	if (isGeminiAvailable()) {

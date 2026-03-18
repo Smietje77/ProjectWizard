@@ -227,7 +227,7 @@ class WizardStore {
 	// Maak snapshot van huidige state (voor undo)
 	private takeSnapshot() {
 		const snapshot: WizardSnapshot = {
-			answers: structuredClone(this.answers),
+			answers: $state.snapshot(this.answers) as WizardAnswer[],
 			categoryDepth: { ...this.categoryDepth },
 			currentStep: this.currentStep,
 			timestamp: Date.now()
@@ -243,7 +243,7 @@ class WizardStore {
 		if (targetIndex < 0 || targetIndex >= this.snapshots.length) return false;
 
 		const snapshot = this.snapshots[targetIndex];
-		this.answers = structuredClone(snapshot.answers);
+		this.answers = $state.snapshot(snapshot.answers) as WizardAnswer[];
 		this.categoryDepth = { ...snapshot.categoryDepth };
 		this.currentStep = snapshot.currentStep;
 

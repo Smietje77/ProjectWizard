@@ -78,5 +78,22 @@ Begin gewoon met de implementatie op basis van bovenstaande instructies.
 Dit project bevat een \`.coderabbit.yaml\` configuratie. Installeer CodeRabbit
 via https://github.com/marketplace/coderabbitai voor gratis AI code reviews
 op elke pull request. Gratis voor public repositories.
+
+## Aanbevolen Claude Code Plugins
+
+### Superpowers (workflow & TDD)
+Gestructureerde development: brainstorming → planning → TDD → code review.
+\`\`\`
+/plugin install superpowers@claude-plugins-official
+\`\`\`
+Meer info: https://github.com/obra/superpowers
+
+### Claude-Mem (persistent memory)
+Onthoudt context tussen sessies: beslissingen, bugs, architectuurkeuzes.
+\`\`\`
+/plugin marketplace add thedotmack/claude-mem
+/plugin install claude-mem
+\`\`\`
+Meer info: https://github.com/thedotmack/claude-mem
 `;
 }

@@ -20,7 +20,8 @@ export {
   generateIntegrationSkillTemplate,
   generateDeploymentSkillTemplate,
   generateSecuritySkillTemplate,
-  generateSeoSkillTemplate
+  generateSeoSkillTemplate,
+  generateUsingSuperpowersSkill
 } from './skills';
 export { generateProductVisionTemplate, hasEnoughProductStrategy } from './product-vision';
 export { generateStitchPrompt } from './stitch-prompt';

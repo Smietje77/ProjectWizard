@@ -175,7 +175,7 @@ function generateFrontendTeammate(answers: WizardAnswers): Teammate {
 		name: 'Frontend Developer',
 		spawnPrompt,
 		agentFile: 'agents/specialists/frontend.md',
-		skillFile: '.claude/skills/design.md',
+		skillFile: '.claude/skills/design-system/SKILL.md',
 		ownedPaths: ['src/routes/', 'src/lib/components/', 'src/lib/stores/']
 	};
 }
@@ -213,7 +213,7 @@ function generateBackendTeammate(answers: WizardAnswers): Teammate {
 		name: 'Backend Developer',
 		spawnPrompt,
 		agentFile: 'agents/specialists/backend.md',
-		skillFile: '.claude/skills/backend.md',
+		skillFile: '.claude/skills/backend-patterns/SKILL.md',
 		ownedPaths
 	};
 }
@@ -235,7 +235,7 @@ function generateTestingTeammate(answers: WizardAnswers): Teammate {
 		name: 'Test Engineer',
 		spawnPrompt,
 		agentFile: 'agents/specialists/testing.md',
-		skillFile: '.claude/skills/testing.md',
+		skillFile: '.claude/skills/testing-strategy/SKILL.md',
 		ownedPaths: ['src/tests/', 'tests/', 'e2e/']
 	};
 }
@@ -252,7 +252,7 @@ function generateIntegrationTeammate(answers: WizardAnswers): Teammate {
 		name: 'Integration Specialist',
 		spawnPrompt,
 		agentFile: 'agents/specialists/integration.md',
-		skillFile: '.claude/skills/integration.md',
+		skillFile: '.claude/skills/external-services/SKILL.md',
 		ownedPaths: ['src/lib/integrations/', '.mcp.json']
 	};
 }
@@ -276,7 +276,7 @@ function generateDevOpsTeammate(answers: WizardAnswers): Teammate {
 		name: 'DevOps Engineer',
 		spawnPrompt,
 		agentFile: 'agents/specialists/devops.md',
-		skillFile: '.claude/skills/deployment.md',
+		skillFile: '.claude/skills/deployment-config/SKILL.md',
 		ownedPaths: ['Dockerfile', 'docker-compose.yml', '.github/workflows/']
 	};
 }
@@ -309,7 +309,7 @@ function generateSecurityTeammate(answers: WizardAnswers): Teammate {
 		name: 'Security Specialist',
 		spawnPrompt,
 		agentFile: 'agents/specialists/security.md',
-		skillFile: '.claude/skills/security.md',
+		skillFile: '.claude/skills/security-checklist/SKILL.md',
 		ownedPaths: ['src/lib/middleware/', 'src/lib/security/', 'supabase/policies/']
 	};
 }

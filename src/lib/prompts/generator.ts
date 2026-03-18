@@ -88,7 +88,7 @@ Standaard variabelen (altijd opnemen):
 PUBLIC_APP_NAME=
 NODE_ENV=development`;
 
-export const DESIGN_SKILL_GENERATOR_PROMPT = `Je genereert een design skill (.claude/skills/design.md) voor Claude Code.
+export const DESIGN_SKILL_GENERATOR_PROMPT = `Je genereert een design skill (.claude/skills/design-system/SKILL.md) voor Claude Code.
 
 Analyseer de wizard antwoorden en genereer een concreet, actionabel design skill bestand.
 Claude Code moet dit bestand kunnen lezen en direct weten welke Tailwind-classes, kleuren en fonts te gebruiken.
@@ -194,7 +194,7 @@ export const AGENT_GENERATOR_PROMPT = `Je genereert aangepaste agent markdown be
 Analyseer de wizard antwoorden en genereer een coordinator agent die specifiek is voor dit project.
 De coordinator moet de tech stack, features en architectuur kennen.
 
-Verwijs naar .planning/ folder voor de GSD workflow en naar .claude/skills/design.md voor de design richtlijnen.
+Verwijs naar .planning/ folder voor de GSD workflow en naar .claude/skills/design-system/SKILL.md voor de design richtlijnen.
 
 Genereer in markdown formaat met:
 1. Agent naam en rol
@@ -207,7 +207,7 @@ Genereer in markdown formaat met:
 // Skill Generator Prompts
 // ============================================
 
-export const BACKEND_SKILL_PROMPT = `Je genereert een backend conventions skill (.claude/skills/backend.md) voor Claude Code.
+export const BACKEND_SKILL_PROMPT = `Je genereert een backend conventions skill (.claude/skills/backend-patterns/SKILL.md) voor Claude Code.
 
 Analyseer de wizard antwoorden over database, API pattern, auth en entities.
 Genereer een concrete backend skill met patronen die specifiek zijn voor de gekozen stack.
@@ -227,7 +227,7 @@ BELANGRIJK:
 
 Schrijf in markdown formaat. Begin met een frontmatter block met name en description.`;
 
-export const TESTING_SKILL_PROMPT = `Je genereert een testing skill (.claude/skills/testing.md) voor Claude Code.
+export const TESTING_SKILL_PROMPT = `Je genereert een testing skill (.claude/skills/testing-strategy/SKILL.md) voor Claude Code.
 
 Analyseer de wizard antwoorden over test strategie, framework en kritieke flows.
 Genereer een concrete testing skill.
@@ -248,7 +248,7 @@ BELANGRIJK:
 
 Schrijf in markdown formaat. Begin met een frontmatter block.`;
 
-export const DEPLOYMENT_SKILL_PROMPT = `Je genereert een deployment skill (.claude/skills/deployment.md) voor Claude Code.
+export const DEPLOYMENT_SKILL_PROMPT = `Je genereert een deployment skill (.claude/skills/deployment-config/SKILL.md) voor Claude Code.
 
 Analyseer de wizard antwoorden over deployment target, domain en framework.
 Genereer een concrete deployment skill.
@@ -270,7 +270,7 @@ BELANGRIJK:
 
 Schrijf in markdown formaat. Begin met een frontmatter block.`;
 
-export const INTEGRATION_SKILL_PROMPT = `Je genereert een integration skill (.claude/skills/integration.md) voor Claude Code.
+export const INTEGRATION_SKILL_PROMPT = `Je genereert een integration skill (.claude/skills/external-services/SKILL.md) voor Claude Code.
 
 Analyseer de wizard antwoorden over externe services en MCP configuraties.
 Genereer een concrete integration skill.
@@ -304,7 +304,7 @@ Als Stripe in de externe services staat:
 
 Schrijf in markdown formaat. Begin met een frontmatter block.`;
 
-export const SECURITY_SKILL_PROMPT = `Je genereert een security skill (.claude/skills/security.md) voor Claude Code.
+export const SECURITY_SKILL_PROMPT = `Je genereert een security skill (.claude/skills/security-checklist/SKILL.md) voor Claude Code.
 
 Analyseer de wizard antwoorden over auth, database en compliance doelen.
 Genereer een concrete security skill.
@@ -326,7 +326,7 @@ BELANGRIJK:
 
 Schrijf in markdown formaat. Begin met een frontmatter block.`;
 
-export const SEO_SKILL_PROMPT = `Je genereert een SEO skill (.claude/skills/seo.md) voor Claude Code.
+export const SEO_SKILL_PROMPT = `Je genereert een SEO skill (.claude/skills/seo-optimization/SKILL.md) voor Claude Code.
 
 Analyseer de wizard antwoorden over website type, framework en deployment.
 Genereer een concrete SEO skill die specifiek is voor het type website.

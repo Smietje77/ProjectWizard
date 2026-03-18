@@ -8,7 +8,7 @@ import { frameworkName, dbName, authName, uiLibName, featuresList, entitiesList,
 
 export function generateClaudeMdTemplate(answers: WizardAnswers): string {
   const screenshotSection = answers.screenshotAnalysis?.length
-    ? `\n## Design Referenties\n\nDit project bevat screenshot-analyses als design referentie. Volg de design skill (.claude/skills/design.md) voor implementatie details.\n`
+    ? `\n## Design Referenties\n\nDit project bevat screenshot-analyses als design referentie. Volg de design skill (.claude/skills/design-system/SKILL.md) voor implementatie details.\n`
     : '';
 
   const productContextLines: string[] = [];
@@ -80,5 +80,9 @@ Zie \`agents/\` folder voor individuele agent instructies.
 
 > **Note:** De \`.planning/\` bestanden zijn gegenereerd door ProjectWizard — geen GSD workflow.
 > GSD-commando's zijn niet nodig. Gebruik de bestanden direct als context.
+
+## Aanbevolen Plugins
+- \`superpowers\` — TDD, brainstorming, planning, code review workflow
+- \`claude-mem\` — Persistent memory tussen sessies
 `;
 }

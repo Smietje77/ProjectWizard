@@ -302,9 +302,17 @@ export async function generateEvalForSkill(
 
     const projectName = gsdAnswers.projectName;
 
-    // Bepaal het pad: skill is .claude/skills/X.md → eval wordt .claude/skills/X.evals.md
-    const skillPath = `.claude/skills/${specialistId}.md`;
-    const evalPath = skillPath.replace('.md', '.evals.md');
+    // Bepaal het pad: eval komt naast SKILL.md in dezelfde subfolder
+    const EVAL_SKILL_NAMES: Record<string, string> = {
+        backend: 'backend-patterns',
+        testing: 'testing-strategy',
+        devops: 'deployment-config',
+        integration: 'external-services',
+        security: 'security-checklist',
+        seo: 'seo-optimization',
+    };
+    const skillName = EVAL_SKILL_NAMES[specialistId] ?? specialistId;
+    const evalPath = `.claude/skills/${skillName}/SKILL.evals.md`;
 
     // Probeer AI-powered evals
     const aiContent = await generateEvalsWithAI(

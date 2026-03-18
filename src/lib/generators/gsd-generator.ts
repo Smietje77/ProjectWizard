@@ -156,7 +156,7 @@ Elk requirement is compleet wanneer:
 
 ## Design Referentie
 UI-gerelateerde requirements (layout, navigatie, formulieren) moeten consistent zijn met het design systeem.
-Zie \`.claude/skills/design.md\` voor kleurenpalet, typografie, component stijlen en responsive richtlijnen.
+Zie \`.claude/skills/design-system/SKILL.md\` voor kleurenpalet, typografie, component stijlen en responsive richtlijnen.
 `;
 }
 
@@ -999,7 +999,7 @@ function formatDesignForContext(answers: WizardAnswers): string {
 - **Kleurenschema**: ${colorMap[answers.colorScheme] || answers.colorScheme}
 - **Typography**: ${typoMap[answers.typography] || answers.typography}
 - **Component Stijl**: ${componentMap[answers.componentStyle] || answers.componentStyle}
-- **Design Tokens**: Zie \`.claude/skills/design.md\` voor gedetailleerde CSS variabelen en Tailwind configuratie`;
+- **Design Tokens**: Zie \`.claude/skills/design-system/SKILL.md\` voor gedetailleerde CSS variabelen en Tailwind configuratie`;
 }
 
 function formatProductStrategyForContext(answers: WizardAnswers): string {
@@ -1037,5 +1037,5 @@ function formatScreenshotForContext(screenshots: PageScreenshot[] | null | undef
     return `### ${s.label} (${s.pageType})\n\`\`\`json\n${analysis}\n\`\`\``;
   }).join('\n\n');
 
-  return `## Design Analyse (uit screenshots)\n\n> **Tip**: De concrete CSS variabelen en Tailwind configuratie op basis van deze screenshots staan in \`.claude/skills/design.md\`.\n\n${sections}\n\n---\n\n`;
+  return `## Design Analyse (uit screenshots)\n\n> **Tip**: De concrete CSS variabelen en Tailwind configuratie op basis van deze screenshots staan in \`.claude/skills/design-system/SKILL.md\`.\n\n${sections}\n\n---\n\n`;
 }

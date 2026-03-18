@@ -56,9 +56,9 @@
     }
 
     function getSpecialistId(skillPath: string): string {
-        // .claude/skills/backend.md → backend
-        const filename = skillPath.split("/").pop() || "";
-        return filename.replace(".md", "");
+        // .claude/skills/backend-patterns/SKILL.md → backend-patterns
+        const parts = skillPath.replace('.claude/skills/', '').split('/');
+        return parts[0] || skillPath;
     }
 
     function getSkillCategory(content: string): string {

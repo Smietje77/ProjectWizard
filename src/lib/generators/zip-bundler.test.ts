@@ -196,34 +196,40 @@ describe('ZIP bevat active specialist agents', () => {
 // ============================================
 
 describe('ZIP bevat active skills', () => {
-	it('bevat design.md skill (frontend is altijd actief)', async () => {
+	it('bevat design-system/SKILL.md skill (frontend is altijd actief)', async () => {
 		const blob = await generateProjectBundle(mockAnswers(), { projectName: 'Test Webshop' });
 		const files = await loadZipFiles(blob);
-		expect(files.some((f) => f.includes('.claude/skills/design.md'))).toBe(true);
+		expect(files.some((f) => f.includes('.claude/skills/design-system/SKILL.md'))).toBe(true);
 	});
 
-	it('bevat backend.md skill (backend is altijd actief)', async () => {
+	it('bevat backend-patterns/SKILL.md skill (backend is altijd actief)', async () => {
 		const blob = await generateProjectBundle(mockAnswers(), { projectName: 'Test Webshop' });
 		const files = await loadZipFiles(blob);
-		expect(files.some((f) => f.includes('.claude/skills/backend.md'))).toBe(true);
+		expect(files.some((f) => f.includes('.claude/skills/backend-patterns/SKILL.md'))).toBe(true);
 	});
 
-	it('bevat testing.md skill bij standard testStrategy', async () => {
+	it('bevat testing-strategy/SKILL.md skill bij standard testStrategy', async () => {
 		const blob = await generateProjectBundle(
 			mockAnswers({ testStrategy: 'standard' }),
 			{ projectName: 'Test Webshop' }
 		);
 		const files = await loadZipFiles(blob);
-		expect(files.some((f) => f.includes('.claude/skills/testing.md'))).toBe(true);
+		expect(files.some((f) => f.includes('.claude/skills/testing-strategy/SKILL.md'))).toBe(true);
 	});
 
-	it('bevat geen testing.md skill bij minimal testStrategy', async () => {
+	it('bevat geen testing-strategy/SKILL.md skill bij minimal testStrategy', async () => {
 		const blob = await generateProjectBundle(
 			mockAnswers({ testStrategy: 'minimal' }),
 			{ projectName: 'Test Webshop' }
 		);
 		const files = await loadZipFiles(blob);
-		expect(files.some((f) => f.includes('.claude/skills/testing.md'))).toBe(false);
+		expect(files.some((f) => f.includes('.claude/skills/testing-strategy/SKILL.md'))).toBe(false);
+	});
+
+	it('bevat using-superpowers/SKILL.md intro skill', async () => {
+		const blob = await generateProjectBundle(mockAnswers(), { projectName: 'Test Webshop' });
+		const files = await loadZipFiles(blob);
+		expect(files.some((f) => f.includes('.claude/skills/using-superpowers/SKILL.md'))).toBe(true);
 	});
 });
 

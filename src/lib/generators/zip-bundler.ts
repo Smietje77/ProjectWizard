@@ -18,7 +18,8 @@ import {
   generateProductVisionTemplate,
   hasEnoughProductStrategy,
   generateStitchPrompt,
-  generateCodeRabbitConfig
+  generateCodeRabbitConfig,
+  generateUsingSuperpowersSkill
 } from './templates';
 
 interface BundleOptions {
@@ -171,11 +172,14 @@ export async function generateProjectBundle(
       if (skillsFolder) {
         for (const skill of skills) {
           if (skill.skillFile) {
-            const fileName = skill.skillFile.split('/').pop() || `${skill.id}.md`;
+            // Pad is bijv. ".claude/skills/design-system/SKILL.md" → "design-system/SKILL.md"
+            const relativePath = skill.skillFile.replace('.claude/skills/', '');
             const content = getSkillTemplate(skill.id, answers);
-            skillsFolder.file(fileName, content);
+            skillsFolder.file(relativePath, content);
           }
         }
+        // using-superpowers intro skill (altijd)
+        skillsFolder.file('using-superpowers/SKILL.md', generateUsingSuperpowersSkill(answers));
       }
     }
 

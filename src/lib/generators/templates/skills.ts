@@ -17,6 +17,12 @@ import { getDesignPreset } from '$lib/data/design-presets';
 import { dbName, authName, uiLibName, entitiesList, servicesList } from './utils';
 import { getStripeConfig, generateStripeSection } from './stripe';
 
+// ─── Superpowers-compatible frontmatter ─────────────────────────────────────
+
+function skillFrontmatter(name: string, description: string): string {
+  return `---\nname: ${name}\ndescription: ${description}\n---\n`;
+}
+
 // ─── Skill Router ──────────────────────────────────────────────────────────
 
 export function getSkillTemplate(id: string, answers: WizardAnswers): string {
@@ -137,7 +143,8 @@ export function generateDesignSkillTemplate(answers: WizardAnswers): string {
   const paletteMood = industryPalette?.mood;
   const styleMood = uiStyle?.mood;
 
-  return `# Design Skill — ${answers.projectName}
+  return skillFrontmatter('design-system', 'Use when implementing UI components, styling, or choosing colors and fonts') +
+`# Design Skill — ${answers.projectName}
 ${isCustomNoScreenshot ? `
 > ⚠️ Custom stijl: geen screenshot of kleurkeuze aangeleverd.
 > Pas de CSS custom properties hieronder handmatig aan op jouw merk.
@@ -323,7 +330,8 @@ input:  bg-white/5 border border-white/10 rounded-[${preset.style.borderRadius}]
 button: bg-primary hover:bg-primary/90 text-white font-medium rounded-[${preset.style.borderRadius}] px-6 py-2.5 transition-colors
 input:  bg-background border border-border rounded-[${preset.style.borderRadius}] focus:border-primary focus:ring-1 focus:ring-primary/30`;
 
-  return `# Design Skill — ${answers.projectName}
+  return skillFrontmatter('design-system', 'Use when implementing UI components, styling, or choosing colors and fonts') +
+`# Design Skill — ${answers.projectName}
 
 > Design Preset: **${preset.name}** — ${preset.description}
 
@@ -415,7 +423,8 @@ Daarna kun je direct Tailwind-classes als \`text-primary\`, \`bg-surface\`, \`bo
 // ─── Backend Skill Template ────────────────────────────────────────────────
 
 export function generateBackendSkillTemplate(answers: WizardAnswers): string {
-  return `# Backend Skill — ${answers.projectName}
+  return skillFrontmatter('backend-patterns', 'Use when building API endpoints, database queries, or server-side logic') +
+`# Backend Skill — ${answers.projectName}
 
 ## API Conventies
 
@@ -451,7 +460,8 @@ ${entitiesList(answers)}
 // ─── Testing Skill Template ────────────────────────────────────────────────
 
 export function generateTestingSkillTemplate(answers: WizardAnswers): string {
-  return `# Testing Skill — ${answers.projectName}
+  return skillFrontmatter('testing-strategy', 'Use when writing tests, setting up test frameworks, or debugging test failures') +
+`# Testing Skill — ${answers.projectName}
 
 ## Test Strategie: ${answers.testStrategy}
 
@@ -505,7 +515,8 @@ export function generateIntegrationSkillTemplate(answers: WizardAnswers): string
   const isSvelteKit = answers.frontendFramework === 'sveltekit';
   const stripeSection = stripeConfig ? generateStripeSection(stripeConfig, isSvelteKit) : '';
 
-  return `# Integration Skill — ${answers.projectName}
+  return skillFrontmatter('external-services', 'Use when integrating external APIs, configuring MCP servers, or setting up webhooks') +
+`# Integration Skill — ${answers.projectName}
 
 ## Externe Services
 
@@ -569,7 +580,8 @@ ${answers.requiredMcps.length > 0 ? answers.requiredMcps.map(m => `- **${m}**: C
 // ─── Deployment Skill Template ─────────────────────────────────────────────
 
 export function generateDeploymentSkillTemplate(answers: WizardAnswers): string {
-  return `# Deployment Skill — ${answers.projectName}
+  return skillFrontmatter('deployment-config', 'Use when deploying, configuring CI/CD, or setting up Docker/hosting') +
+`# Deployment Skill — ${answers.projectName}
 
 ## Deployment Target: ${answers.deploymentTarget}
 
@@ -652,7 +664,8 @@ export function generateSecuritySkillTemplate(answers: WizardAnswers): string {
   const hasGDPR = text.includes('gdpr') || text.includes('privacy') || text.includes('avg');
   const hasNIS2 = text.includes('nis2');
 
-  return `# Security Skill — ${answers.projectName}
+  return skillFrontmatter('security-checklist', 'Use when reviewing security, configuring auth, or implementing data protection') +
+`# Security Skill — ${answers.projectName}
 
 ## Security Checklist
 
@@ -812,7 +825,8 @@ useSeoMeta({
 - Gebruik \`definePageMeta\` voor route-level configuratie
 - Sitemap via \`@nuxtjs/sitemap\` module`;
 
-  return `# SEO Skill — ${answers.projectName}
+  return skillFrontmatter('seo-optimization', 'Use when optimizing for search engines, adding meta tags, or structured data') +
+`# SEO Skill — ${answers.projectName}
 
 ## Website Type: ${websiteType}
 
@@ -967,5 +981,41 @@ ${frameworkHead}
 - **Lighthouse**: audits voor performance, accessibility, SEO
 - **PageSpeed Insights**: Core Web Vitals meting
 - Schema validatie: rich results test
+`;
+}
+
+// ─── Using Superpowers Intro Skill ──────────────────────────────────────────
+
+export function generateUsingSuperpowersSkill(answers: WizardAnswers): string {
+  return `---
+name: using-superpowers
+description: Read this first when starting work on this project
+---
+# ${answers.projectName} — Project Introductie
+
+## Tech Stack
+- Framework: ${answers.frontendFramework}
+- Database: ${answers.database}
+- Auth: ${answers.authMethod}
+- Deployment: ${answers.deploymentTarget}
+
+## Beschikbare Skills
+${['design-system', 'backend-patterns', 'testing-strategy', 'external-services',
+   'deployment-config', 'security-checklist', 'seo-optimization']
+  .map(s => `- \`${s}\` — zie .claude/skills/${s}/SKILL.md`)
+  .join('\n')}
+
+## Workflow
+1. Lees de relevante skill VOORDAT je begint met implementeren
+2. Volg TDD: schrijf eerst de test, dan de code
+3. Commit na elke werkende stap
+4. Vraag om code review na elke feature
+
+## Projectbestanden
+- \`CLAUDE.md\` — Projectoverzicht en context
+- \`PROMPT.md\` — Instructies voor de AI agent
+- \`PRODUCT-VISION.md\` — Product strategie (indien aanwezig)
+- \`.planning/\` — GSD planning bestanden
+- \`manifest.json\` — Gegenereerde project metadata
 `;
 }

@@ -30,6 +30,16 @@ import {
 
 export type SkillCategory = 'capability_uplift' | 'workflow';
 
+/** Mapping: specialist id → Superpowers description */
+const SKILL_DESCRIPTIONS: Record<string, string> = {
+	backend: 'Use when building API endpoints, database queries, or server-side logic',
+	testing: 'Use when writing tests, setting up test frameworks, or debugging test failures',
+	devops: 'Use when deploying, configuring CI/CD, or setting up Docker/hosting',
+	integration: 'Use when integrating external APIs, configuring MCP servers, or setting up webhooks',
+	security: 'Use when reviewing security, configuring auth, or implementing data protection',
+	seo: 'Use when optimizing for search engines, adding meta tags, or structured data',
+};
+
 /** Mapping: specialist id → skill categorie */
 const SKILL_CATEGORIES: Record<string, SkillCategory> = {
 	backend: 'capability_uplift',   // leert model projectspecifieke DB/API patronen
@@ -65,9 +75,12 @@ function generateSkillFrontmatter(
 
 	const today = new Date().toISOString().split('T')[0];
 
+	const description = SKILL_DESCRIPTIONS[specialistId] ?? '';
+
 	const lines = [
 		'---',
 		`name: ${specialistId}-${projectName.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
+		...(description ? [`description: ${description}`] : []),
 		`category: ${category}`,
 		`created: ${today}`,
 	];
@@ -202,8 +215,15 @@ async function generateEnrichedSkill(
 		console.error(`Skill generatie fout voor ${specialistId}:`, error);
 	}
 
-	// Fallback naar template — ook met frontmatter
-	return frontmatter + templateFn(gsdAnswers);
+	// Fallback naar template — strip template frontmatter (templates hebben nu eigen Superpowers frontmatter)
+	let fallbackContent = templateFn(gsdAnswers);
+	if (fallbackContent.trimStart().startsWith('---')) {
+		const secondDash = fallbackContent.indexOf('---', fallbackContent.indexOf('---') + 3);
+		if (secondDash !== -1) {
+			fallbackContent = fallbackContent.slice(secondDash + 3).trimStart();
+		}
+	}
+	return frontmatter + fallbackContent;
 }
 
 /**

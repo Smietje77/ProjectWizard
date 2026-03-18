@@ -292,24 +292,24 @@ describe('getActiveSkills filtert op skillNeeded=true', () => {
 	it('bevat design skill (frontend heeft altijd skillNeeded=true)', () => {
 		const skills = getActiveSkills(mockAnswers());
 		const skillFiles = skills.map((s) => s.skillFile);
-		expect(skillFiles).toContain('.claude/skills/design.md');
+		expect(skillFiles).toContain('.claude/skills/design-system/SKILL.md');
 	});
 
 	it('bevat backend skill (backend heeft altijd skillNeeded=true)', () => {
 		const skills = getActiveSkills(mockAnswers());
 		const skillFiles = skills.map((s) => s.skillFile);
-		expect(skillFiles).toContain('.claude/skills/backend.md');
+		expect(skillFiles).toContain('.claude/skills/backend-patterns/SKILL.md');
 	});
 
 	it('sluit testing skill uit bij minimal testStrategy', () => {
 		const skills = getActiveSkills(mockAnswers({ testStrategy: 'minimal' }));
 		const skillFiles = skills.map((s) => s.skillFile);
-		expect(skillFiles).not.toContain('.claude/skills/testing.md');
+		expect(skillFiles).not.toContain('.claude/skills/testing-strategy/SKILL.md');
 	});
 
 	it('bevat testing skill bij standard testStrategy', () => {
 		const skills = getActiveSkills(mockAnswers({ testStrategy: 'standard' }));
 		const skillFiles = skills.map((s) => s.skillFile);
-		expect(skillFiles).toContain('.claude/skills/testing.md');
+		expect(skillFiles).toContain('.claude/skills/testing-strategy/SKILL.md');
 	});
 });

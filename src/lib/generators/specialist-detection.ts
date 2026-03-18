@@ -50,7 +50,7 @@ export function detectRequiredSpecialists(answers: WizardAnswers): DetectedSpeci
 			needed: true,
 			reason: 'UI implementatie',
 			agentFile: 'agents/specialists/frontend.md',
-			skillFile: '.claude/skills/design.md',
+			skillFile: '.claude/skills/design-system/SKILL.md',
 			skillNeeded: true
 		},
 		{
@@ -59,7 +59,7 @@ export function detectRequiredSpecialists(answers: WizardAnswers): DetectedSpeci
 			needed: true,
 			reason: 'API en database',
 			agentFile: 'agents/specialists/backend.md',
-			skillFile: '.claude/skills/backend.md',
+			skillFile: '.claude/skills/backend-patterns/SKILL.md',
 			skillNeeded: true
 		},
 
@@ -70,7 +70,7 @@ export function detectRequiredSpecialists(answers: WizardAnswers): DetectedSpeci
 			needed: answers.testStrategy !== 'minimal',
 			reason: `Test strategie: ${answers.testStrategy}`,
 			agentFile: 'agents/specialists/testing.md',
-			skillFile: '.claude/skills/testing.md',
+			skillFile: '.claude/skills/testing-strategy/SKILL.md',
 			skillNeeded: answers.testStrategy !== 'minimal'
 		},
 		{
@@ -79,7 +79,7 @@ export function detectRequiredSpecialists(answers: WizardAnswers): DetectedSpeci
 			needed: answers.externalServices.length > 0 || answers.requiredMcps.length > 1,
 			reason: `${answers.externalServices.length} externe services, ${answers.requiredMcps.length} MCPs`,
 			agentFile: 'agents/specialists/integration.md',
-			skillFile: '.claude/skills/integration.md',
+			skillFile: '.claude/skills/external-services/SKILL.md',
 			skillNeeded: answers.externalServices.length > 0 || answers.requiredMcps.length > 1
 		},
 		{
@@ -88,7 +88,7 @@ export function detectRequiredSpecialists(answers: WizardAnswers): DetectedSpeci
 			needed: answers.deploymentTarget !== 'vercel' || answers.hasDomain,
 			reason: `Deploy: ${answers.deploymentTarget}${answers.hasDomain ? ', custom domain' : ''}`,
 			agentFile: 'agents/specialists/devops.md',
-			skillFile: '.claude/skills/deployment.md',
+			skillFile: '.claude/skills/deployment-config/SKILL.md',
 			skillNeeded: answers.deploymentTarget !== 'vercel' || answers.hasDomain
 		},
 		{
@@ -97,7 +97,7 @@ export function detectRequiredSpecialists(answers: WizardAnswers): DetectedSpeci
 			needed: securityNeeded,
 			reason: 'Compliance/security keywords gedetecteerd',
 			agentFile: 'agents/specialists/security.md',
-			skillFile: '.claude/skills/security.md',
+			skillFile: '.claude/skills/security-checklist/SKILL.md',
 			skillNeeded: securityNeeded
 		},
 		{
@@ -106,7 +106,7 @@ export function detectRequiredSpecialists(answers: WizardAnswers): DetectedSpeci
 			needed: seoNeeded,
 			reason: `Website type: ${answers.websiteType ?? 'n.v.t.'}`,
 			agentFile: 'agents/specialists/seo.md',
-			skillFile: '.claude/skills/seo.md',
+			skillFile: '.claude/skills/seo-optimization/SKILL.md',
 			skillNeeded: seoNeeded
 		}
 	];

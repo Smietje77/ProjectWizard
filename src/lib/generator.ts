@@ -328,7 +328,7 @@ next-env.d.ts`,
 	return `${common}\n${specific}\n`;
 }
 
-// Genereer design skill (.claude/skills/design.md)
+// Genereer design skill (.claude/skills/design-system/SKILL.md)
 // Gebaseerd op de Anthropic frontend-design skill, aangevuld met projectspecifieke keuzes
 export function generateDesignSkill(answers: WizardAnswer[]): string {
 	const designAnswers = answers.filter((a) => a.specialist === 'design' && a.type !== 'skipped');
