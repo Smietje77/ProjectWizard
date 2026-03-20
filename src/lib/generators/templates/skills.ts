@@ -33,7 +33,8 @@ export function getSkillTemplate(id: string, answers: WizardAnswers): string {
     integration: generateIntegrationSkillTemplate,
     deployment: generateDeploymentSkillTemplate,
     security: generateSecuritySkillTemplate,
-    seo: generateSeoSkillTemplate
+    seo: generateSeoSkillTemplate,
+    stitch: generateStitchSkillTemplate
   };
 
   const generator = generators[id];
@@ -984,6 +985,74 @@ ${frameworkHead}
 `;
 }
 
+// ─── Stitch UI Design Skill ──────────────────────────────────────────────────
+
+export function generateStitchSkillTemplate(answers: WizardAnswers): string {
+  const frontmatter = skillFrontmatter(
+    'stitch-ui-design',
+    'Use when designing UI screens, creating mockups, or generating frontend components with Google Stitch'
+  );
+
+  return `${frontmatter}
+# Stitch UI Design Skill
+
+## Wanneer gebruiken
+- Bij het ontwerpen van nieuwe schermen of pagina's
+- Bij het itereren op bestaand UI design
+- Bij het genereren van HTML/CSS prototypes
+- Bij het opzetten van een consistent design system
+
+## Stitch MCP Server
+Dit project heeft een Stitch MCP server geconfigureerd in \`.mcp.json\`.
+Gebruik de volgende tools via de MCP connectie:
+
+### Beschikbare tools
+- \`create_project\` — Maak een nieuw Stitch project
+- \`generate_screen_from_text\` — Genereer een scherm vanuit een prompt
+- \`get_screen\` — Haal HTML en screenshot op van een gegenereerd scherm
+- \`list_projects\` / \`list_screens\` — Bekijk bestaande projecten/schermen
+
+### Workflow
+1. Lees DESIGN.md voor het design system van dit project
+2. Lees STITCH-PROMPT.txt voor de vibe prompt en scherm-prompts
+3. Gebruik \`create_project\` om een Stitch project aan te maken
+4. Gebruik \`generate_screen_from_text\` met de prompts uit STITCH-PROMPT.txt
+5. Haal de HTML op met \`get_screen\` en integreer in het project
+
+### SDK Voorbeeld (alternatief voor MCP)
+\`\`\`javascript
+import { stitch } from "@google/stitch-sdk";
+// STITCH_API_KEY moet in .env staan
+const project = stitch.project("project-id");
+const screen = await project.generate("prompt uit STITCH-PROMPT.txt");
+const html = await screen.getHtml();
+\`\`\`
+
+### Varianten genereren
+\`\`\`javascript
+const variants = await screen.variants("Try different color schemes", {
+  variantCount: 3,
+  creativeRange: "EXPLORE",
+  aspects: ["COLOR_SCHEME", "LAYOUT"]
+});
+\`\`\`
+
+## Design Context
+${answers.projectName} — ${answers.designStyle ?? 'modern'} design
+- Kleurenschema: ${answers.colorScheme ?? 'light'}
+- Componenten: ${answers.componentStyle ?? 'rounded'}
+- Navigatie: ${answers.navigationPattern ?? 'topbar'}
+- UI library: ${answers.uiLibrary}
+${answers.brandPersonality ? `- Merkpersoonlijkheid: ${answers.brandPersonality}` : ''}
+
+## Belangrijke regels
+- Gebruik ALTIJD de design tokens uit DESIGN.md voor consistentie
+- Genereer schermen in Experimental mode (Gemini 2.5 Pro) voor kwaliteit
+- Exporteer HTML en pas aan naar het framework (${answers.frontendFramework})
+- Bewaar gegenereerde screenshots als referentie in \`.planning/designs/\`
+`;
+}
+
 // ─── Using Superpowers Intro Skill ──────────────────────────────────────────
 
 export function generateUsingSuperpowersSkill(answers: WizardAnswers): string {
@@ -1001,7 +1070,7 @@ description: Read this first when starting work on this project
 
 ## Beschikbare Skills
 ${['design-system', 'backend-patterns', 'testing-strategy', 'external-services',
-   'deployment-config', 'security-checklist', 'seo-optimization']
+   'deployment-config', 'security-checklist', 'seo-optimization', 'stitch-ui-design']
   .map(s => `- \`${s}\` — zie .claude/skills/${s}/SKILL.md`)
   .join('\n')}
 

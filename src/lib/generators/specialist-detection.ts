@@ -108,6 +108,17 @@ export function detectRequiredSpecialists(answers: WizardAnswers): DetectedSpeci
 			agentFile: 'agents/specialists/seo.md',
 			skillFile: '.claude/skills/seo-optimization/SKILL.md',
 			skillNeeded: seoNeeded
+		},
+
+		// Skill-only (geen agent nodig — Stitch is een extern tool)
+		{
+			id: 'stitch',
+			name: 'Stitch UI Designer',
+			needed: false,
+			reason: 'UI design via Google Stitch',
+			agentFile: '',
+			skillFile: '.claude/skills/stitch-ui-design/SKILL.md',
+			skillNeeded: true
 		}
 	];
 }

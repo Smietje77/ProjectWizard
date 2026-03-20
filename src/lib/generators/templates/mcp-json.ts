@@ -50,6 +50,15 @@ export function generateMcpJsonTemplate(answers: WizardAnswers): string {
     }
   }
 
+  // Stitch MCP server — AI UI design capabilities
+  mcpServers['stitch'] = {
+    command: 'npx',
+    args: ['-y', '@google/stitch-sdk', 'mcp'],
+    env: {
+      STITCH_API_KEY: '${STITCH_API_KEY}'
+    }
+  };
+
   const config = { mcpServers };
   return JSON.stringify(config, null, 2);
 }

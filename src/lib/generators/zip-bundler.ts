@@ -19,7 +19,8 @@ import {
   hasEnoughProductStrategy,
   generateStitchPrompt,
   generateCodeRabbitConfig,
-  generateUsingSuperpowersSkill
+  generateUsingSuperpowersSkill,
+  generateDesignMd
 } from './templates';
 
 interface BundleOptions {
@@ -85,6 +86,12 @@ function generateManifest(answers: WizardAnswers, projectName: string): string {
       mustHave: answers.coreFeatures.filter(f => f.priority === 'must').length,
       shouldHave: answers.coreFeatures.filter(f => f.priority === 'should').length,
       niceToHave: answers.coreFeatures.filter(f => f.priority === 'nice').length
+    },
+    design: {
+      stitchPrompt: 'STITCH-PROMPT.txt',
+      ...((answers.designStyle || answers.designPreset || answers.selectedPalette || answers.brandPersonality)
+        ? { designSystem: 'DESIGN.md' } : {}),
+      stitchMcp: '@google/stitch-sdk'
     },
     ...(answers.brandPersonality || answers.revenueModel || answers.goToMarket ? {
       productStrategy: {
@@ -188,16 +195,17 @@ export async function generateProjectBundle(
       projectFolder.file('PRODUCT-VISION.md', generateProductVisionTemplate(answers));
     }
 
-    // STITCH-PROMPT.txt — altijd als er voldoende data is
+    // STITCH-PROMPT.txt — multi-screen UI design prompts
     const stitchPrompt = generateStitchPrompt(answers);
     if (stitchPrompt.length > 30) {
-      projectFolder.file('STITCH-PROMPT.txt', [
-        '# Google Stitch UI Preview Prompt',
-        '# Kopieer dit naar: https://stitch.withgoogle.com',
-        '# Gebruik Experimental mode voor beste resultaten',
-        '',
-        stitchPrompt
-      ].join('\n'));
+      projectFolder.file('STITCH-PROMPT.txt', stitchPrompt);
+    }
+
+    // DESIGN.md — Stitch 2.0 design system import
+    const hasDesignData = answers.designStyle || answers.designPreset
+      || answers.selectedPalette || answers.brandPersonality;
+    if (hasDesignData) {
+      projectFolder.file('DESIGN.md', generateDesignMd(answers));
     }
   }
 

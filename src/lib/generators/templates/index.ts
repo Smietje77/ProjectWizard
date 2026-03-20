@@ -21,8 +21,10 @@ export {
   generateDeploymentSkillTemplate,
   generateSecuritySkillTemplate,
   generateSeoSkillTemplate,
+  generateStitchSkillTemplate,
   generateUsingSuperpowersSkill
 } from './skills';
+export { generateDesignMd } from './design-md';
 export { generateProductVisionTemplate, hasEnoughProductStrategy } from './product-vision';
 export { generateStitchPrompt } from './stitch-prompt';
 export { generateCodeRabbitConfig } from './coderabbit';

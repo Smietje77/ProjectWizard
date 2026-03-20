@@ -34,18 +34,30 @@
 		wizardStore.isLoading = true;
 		wizardStore.error = null;
 		try {
-			const response = await fetch('/api/chat', {
+			const requestBody = {
+				projectDescription: wizardStore.initialDescription,
+				answers: wizardStore.answers,
+				currentStep: wizardStore.currentStep,
+				completedCategories: [...wizardStore.completedCategories],
+				userAnswer,
+				...(wizardStore.documentContext ? { documentContext: wizardStore.documentContext } : {})
+			};
+
+			let response = await fetch('/api/chat', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					projectDescription: wizardStore.initialDescription,
-					answers: wizardStore.answers,
-					currentStep: wizardStore.currentStep,
-					completedCategories: [...wizardStore.completedCategories],
-					userAnswer,
-					...(wizardStore.documentContext ? { documentContext: wizardStore.documentContext } : {})
-				})
+				body: JSON.stringify(requestBody)
 			});
+
+			// Automatische retry bij 422 — Claude kan incidenteel slechte JSON geven
+			if (response.status === 422) {
+				console.warn('Coordinator response validatie mislukt, automatische retry...');
+				response = await fetch('/api/chat', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify(requestBody)
+				});
+			}
 
 			if (!response.ok) {
 				const body = await response.json().catch(() => null);

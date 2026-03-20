@@ -106,6 +106,7 @@ De volgende projectspecifieke skills zijn beschikbaar:
 - \`.claude/skills/backend-patterns/SKILL.md\` — Backend Developer
 - \`.claude/skills/testing-strategy/SKILL.md\` — Test Engineer
 - \`.claude/skills/deployment-config/SKILL.md\` — DevOps Engineer
+- \`.claude/skills/stitch-ui-design/SKILL.md\` — Stitch UI Designer
 
 Gebruik deze skills als referentie bij het uitvoeren van taken. Elke skill bevat projectspecifieke richtlijnen, patronen en conventies voor dat domein.
 
@@ -137,6 +138,11 @@ DOKPLOY_URL=https://your-dokploy-instance.com
 # Krijg je key op: https://aistudio.google.com/app/apikeys
 GEMINI_API_KEY=
 
+# Google Stitch (AI UI Design)
+# Genereer professionele UI designs vanuit tekst prompts
+# API key: stitch.withgoogle.com → profiel → Stitch Settings → API Keys
+STITCH_API_KEY=
+
 # Applicatie
 PUBLIC_APP_URL=http://localhost:5173
 NODE_ENV=development"
@@ -154,6 +160,17 @@ exports[`generateMcpJsonTemplate > output snapshot 1`] = `
       "env": {
         "SUPABASE_URL": "\${SUPABASE_URL}",
         "SUPABASE_SERVICE_ROLE_KEY": "\${SUPABASE_SERVICE_ROLE_KEY}"
+      }
+    },
+    "stitch": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@google/stitch-sdk",
+        "mcp"
+      ],
+      "env": {
+        "STITCH_API_KEY": "\${STITCH_API_KEY}"
       }
     }
   }

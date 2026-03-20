@@ -20,6 +20,53 @@ import {
 import { sanitizePromptInput, MAX_LENGTHS } from '$lib/server/sanitize';
 import { createLogger } from '$lib/server/logger';
 
+/**
+ * Normaliseert Claude's JSON response voordat Zod het valideert.
+ * Corrigeert veelvoorkomende formaat-afwijkingen:
+ * - String booleans ("true"/"false") → echte booleans
+ * - Alternatieve vraag_type namen → canonical namen
+ * - String nummers → echte nummers
+ * - Ontbrekende verplichte velden met fallbacks
+ */
+function normalizeCoordinatorResponse(raw: Record<string, unknown>): Record<string, unknown> {
+	const normalized = { ...raw };
+
+	// Boolean coercion: "true"/"false" strings → boolean
+	if (typeof normalized.is_compleet === 'string') {
+		normalized.is_compleet = normalized.is_compleet === 'true';
+	}
+
+	// vraag_type normalisatie — Claude gebruikt soms Engelse of alternatieve namen
+	if (typeof normalized.vraag_type === 'string') {
+		const vt = normalized.vraag_type.toLowerCase().replace(/[\s-]/g, '_');
+		if (vt.includes('free') || vt.includes('tekst') || vt.includes('text') || vt === 'open') {
+			normalized.vraag_type = 'vrije_tekst';
+		} else if (vt.includes('choice') || vt.includes('multiple') || vt.includes('keuze')) {
+			normalized.vraag_type = 'multiple_choice';
+		}
+	}
+
+	// Number coercion: string nummers → echte nummers
+	if (typeof normalized.antwoord_kwaliteit === 'string') {
+		const n = Number(normalized.antwoord_kwaliteit);
+		normalized.antwoord_kwaliteit = isNaN(n) ? null : n;
+	}
+	if (typeof normalized.max_selecties === 'string') {
+		const n = Number(normalized.max_selecties);
+		normalized.max_selecties = isNaN(n) ? undefined : n;
+	}
+
+	// Fallback voor ontbrekende verplichte velden
+	if (!normalized.advies_reden && normalized.advies) {
+		normalized.advies_reden = String(normalized.advies);
+	}
+	if (!normalized.advies && normalized.advies_reden) {
+		normalized.advies = String(normalized.advies_reden);
+	}
+
+	return normalized;
+}
+
 export const POST: RequestHandler = async ({ request, locals }) => {
 	const log = createLogger(locals.requestId);
 	const startTime = Date.now();
@@ -202,7 +249,8 @@ Bepaal de volgende vraag.`
 		}
 
 		const parsed = JSON.parse(jsonMatch[0]);
-		const result = coordinatorResponseSchema.safeParse(parsed);
+		const normalized = normalizeCoordinatorResponse(parsed);
+		const result = coordinatorResponseSchema.safeParse(normalized);
 		if (!result.success) {
 			log.error('Coordinator response validatie mislukt', undefined, {
 				issues: result.error.issues

@@ -75,6 +75,13 @@ export function generateEnvExampleTemplate(answers: WizardAnswers): string {
   lines.push('GEMINI_API_KEY=');
   lines.push('');
 
+  // Google Stitch (AI UI Design)
+  lines.push('# Google Stitch (AI UI Design)');
+  lines.push('# Genereer professionele UI designs vanuit tekst prompts');
+  lines.push('# API key: stitch.withgoogle.com → profiel → Stitch Settings → API Keys');
+  lines.push('STITCH_API_KEY=');
+  lines.push('');
+
   // General
   lines.push('# Applicatie');
   if (answers.frontendFramework === 'sveltekit') {
