@@ -31,6 +31,16 @@ import { createLogger } from '$lib/server/logger';
 function normalizeCoordinatorResponse(raw: Record<string, unknown>): Record<string, unknown> {
 	const normalized = { ...raw };
 
+	// Null → undefined voor alle optionele velden
+	// Zod .optional() accepteert undefined maar NIET null
+	const optionalFields = ['opties', 'max_selecties', 'categorie', 'antwoord_kwaliteit',
+		'kwaliteit_feedback', 'categorie_diepte', 'critic_feedback'];
+	for (const field of optionalFields) {
+		if (normalized[field] === null) {
+			delete normalized[field];
+		}
+	}
+
 	// Boolean coercion: "true"/"false" strings → boolean
 	if (typeof normalized.is_compleet === 'string') {
 		normalized.is_compleet = normalized.is_compleet === 'true';
@@ -253,7 +263,9 @@ Bepaal de volgende vraag.`
 		const result = coordinatorResponseSchema.safeParse(normalized);
 		if (!result.success) {
 			log.error('Coordinator response validatie mislukt', undefined, {
-				issues: result.error.issues
+				issues: result.error.issues,
+				rawKeys: Object.keys(parsed),
+				normalizedSample: JSON.stringify(normalized).slice(0, 500)
 			});
 			return json(
 				{
@@ -261,7 +273,8 @@ Bepaal de volgende vraag.`
 					details: result.error.issues.map((i) => ({
 						path: i.path.join('.'),
 						message: i.message
-					}))
+					})),
+					rawKeys: Object.keys(parsed)
 				},
 				{ status: 422 }
 			);

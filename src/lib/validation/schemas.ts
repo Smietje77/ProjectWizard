@@ -123,16 +123,17 @@ export const coordinatorResponseSchema = z.object({
 	volgende_specialist: z.string().min(1),
 	vraag: z.string().min(1),
 	vraag_type: z.enum(['multiple_choice', 'vrije_tekst']),
-	opties: z.array(z.string()).optional(),
-	max_selecties: z.number().int().positive().optional(),
-	categorie: z.string().optional(),
+	opties: z.array(z.string()).nullable().optional(),
+	max_selecties: z.number().int().positive().nullable().optional(),
+	categorie: z.string().nullable().optional(),
 	advies: z.string(),
 	advies_reden: z.string(),
 	is_compleet: z.boolean(),
 	antwoord_kwaliteit: z.number().nullable().optional(),
-	kwaliteit_feedback: z.string().optional(),
+	kwaliteit_feedback: z.string().nullable().optional(),
 	categorie_diepte: z
 		.record(z.string(), z.enum(['onvoldoende', 'basis', 'voldoende']))
+		.nullable()
 		.optional(),
-	critic_feedback: z.string().optional()
+	critic_feedback: z.string().nullable().optional()
 });
