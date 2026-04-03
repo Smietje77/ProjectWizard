@@ -44,6 +44,15 @@
 
 	let maxSelecties = $derived(question.max_selecties ?? 1);
 	let isMultiSelect = $derived(maxSelecties > 1);
+	let customText = $state('');
+
+	// Detecteer of een optie een "Anders/specificeer" variant is
+	function isCustomOption(optie: string): boolean {
+		const lower = optie.toLowerCase();
+		return lower.includes('anders') || lower.includes('other') || lower.includes('specificeer');
+	}
+
+	let hasCustomSelected = $derived(selectedOptions.some(isCustomOption));
 
 	// Toon screenshot upload knop bij alle vrije tekst vragen
 	let showImageUpload = $derived(question.vraag_type === 'vrije_tekst');
@@ -54,6 +63,7 @@
 		question;
 		isFollowUpMode = false;
 		followUpQuestion = '';
+		customText = '';
 		screenshots = [];
 		showUploadZone = false;
 	});
@@ -82,7 +92,9 @@
 	function handleSubmit() {
 		let answer =
 			question.vraag_type === 'multiple_choice'
-				? selectedOptions.join(', ')
+				? selectedOptions
+						.map((o) => (isCustomOption(o) && customText.trim() ? `${o}: ${customText.trim()}` : o))
+						.join(', ')
 				: textAnswer.trim();
 
 		// Bij design vragen: voeg screenshot analyses toe aan antwoord (multi-page)
@@ -302,6 +314,19 @@
 							.replace('{max}', String(maxSelecties))}
 					</p>
 				{/if}
+
+				{#if hasCustomSelected}
+					<textarea
+						bind:value={customText}
+						placeholder="Omschrijf je keuze..."
+						class="textarea w-full rounded-lg p-3"
+						rows="2"
+						{disabled}
+						onkeydown={(e) => {
+							if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) handleSubmit();
+						}}
+					></textarea>
+				{/if}
 			</div>
 		{:else}
 			<!-- Vrije tekst input -->
@@ -439,7 +464,7 @@
 				onclick={handleSubmit}
 				disabled={disabled ||
 					(question.vraag_type === 'multiple_choice'
-						? selectedOptions.length === 0
+						? selectedOptions.length === 0 || (hasCustomSelected && !customText.trim())
 						: !textAnswer.trim() && !hasAnyAnalysis)}
 			>
 				{i18n.t.wizard.nextButton}
