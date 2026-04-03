@@ -43,7 +43,7 @@ export const chatRequestSchema = z.object({
 	currentStep: z.number().int().min(0).max(100),
 	completedCategories: z.array(z.string()).optional(),
 	userAnswer: z.string().optional(),
-	documentContext: z.string().max(50000).optional()
+	documentContext: z.string().max(500000).optional()
 });
 
 // POST /api/extract-document
